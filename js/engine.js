@@ -118,9 +118,20 @@
       for (let i = this.history.length - 1; i >= 0; i--) {
         const h = this.history[i];
         if (h.t === "c") return i === this.history.length - 1 ? [h.w, h.l] : [];
-        if (h.t === "x") return i === this.history.length - 1 ? h.ids.slice() : [];
+        if (h.t === "x" || h.t === "s") return i === this.history.length - 1 ? h.ids.slice() : [];
       }
       return [];
+    }
+
+    // 「後に回す」にした組み合わせ（まだ比べていないものだけ）
+    _deferredKeys() {
+      const keys = new Set();
+      for (const h of this.history) {
+        if (h.t !== "s") continue;
+        const [a, b] = h.ids;
+        if (!this.gt[a][b] && !this.gt[b][a]) keys.add(a < b ? a * this.n + b : b * this.n + a);
+      }
+      return keys;
     }
 
     // ---- 次の対戦カード ----
@@ -179,15 +190,19 @@
         Math.abs(be[p[0]] - be[p[1]]) + 0.1 * (this.nc[p[0]] + this.nc[p[1]]) +
         (mset.has(p[0]) ? 0 : 3) + (mset.has(p[1]) ? 0 : 3);
 
-      const top = pairsOf(mx);
-      let free = top.filter(isFree);
-      if (!free.length) {
+      // 後に回した組み合わせは、ほかに同じくらい役立つ組み合わせがある間は出さない
+      const deferred = this._deferredKeys();
+      const notDeferred = (p) => !deferred.has(p[0] < p[1] ? p[0] * this.n + p[1] : p[1] * this.n + p[0]);
+      const allTop = pairsOf(mx);
+      const tier2 = und.filter((i) => !mset.has(i) && und.every((j) => !gt[j][i] || mset.has(j)));
+      for (const filt of [notDeferred, () => true]) {
+        const top = allTop.filter(filt);
+        let free = top.filter(isFree);
         // 直前の曲を避けるため、勝ち残り直下の曲まで候補を広げる
-        const tier2 = und.filter((i) => !mset.has(i) && und.every((j) => !gt[j][i] || mset.has(j)));
-        free = pairsOf(mx.concat(tier2)).filter(isFree);
+        if (!free.length) free = pairsOf(mx.concat(tier2)).filter((p) => isFree(p) && filt(p));
+        if (free.length) return orient(pick(free, cost));
+        if (top.length) return orient(pick(top, cost));
       }
-      if (free.length) return orient(pick(free, cost));
-      if (top.length) return orient(pick(top, cost));
       // 念のための保険: 未定の曲と脱落曲の比較、それでもなければ未定同士
       const outs = pool.filter((i) => state[i] === -1);
       const cross = [];
@@ -204,6 +219,21 @@
 
     removeBoth(a, b) {
       this._push({ t: "x", ids: [a, b] });
+    }
+
+    // 第1ステージだけ: この組み合わせを後に回す（比較の結果には影響しない）
+    defer(a, b) {
+      this._push({ t: "s", ids: [a, b] });
+    }
+
+    // 後に回したら別の組み合わせが出せるか（出せないなら今比べる必要がある）
+    canDefer(a, b) {
+      if (this.phase !== 1) return false;
+      // "s" は状態を変えないので、履歴に一時的に積んで次の組み合わせを見るだけでよい
+      this.history.push({ t: "s", ids: [a, b] });
+      const next = this.nextPair();
+      this.history.pop();
+      return !!next && !(next.includes(a) && next.includes(b));
     }
 
     _push(h) {

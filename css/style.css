@@ -110,6 +110,8 @@ img { display: block; max-width: 100%; }
 }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* 押すと理由を案内するので、disabled にはせず見た目だけ控えめにする */
+.btn[aria-disabled="true"] { opacity: 0.4; }
 .btn__sub { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; opacity: 0.72; }
 
 .btn--primary { background: var(--text); color: var(--hall); }
@@ -462,8 +464,31 @@ img { display: block; max-width: 100%; }
   35% { box-shadow: 0 -6px 40px 6px var(--c), 0 0 60px 10px var(--c); transform: scaleY(1.04); }
 }
 
+/* 上段: 左に「ひとつ戻る」（取り消し）、中央に問いかけ */
+.arena__bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  max-width: min(760px, 96vh); /* カード列と左端をそろえる */
+  margin: 18px auto 10px;
+}
+.arena__undo {
+  justify-self: start;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.arena__undo:hover { color: var(--text); }
+.arena__undo:disabled { opacity: 0.35; cursor: default; }
+
 .arena__ask {
-  margin: 18px 0 10px;
+  margin: 0;
   text-align: center;
   font-family: var(--f-display);
   font-size: 15px;

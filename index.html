@@ -105,7 +105,10 @@
         </p>
       </header>
 
-      <p class="arena__ask">どちらが好み？</p>
+      <div class="arena__bar">
+        <button type="button" class="arena__undo" data-action="undo">← ひとつ戻る</button>
+        <p class="arena__ask">どちらが好み？</p>
+      </div>
       <div class="arena" data-arena>
         <article class="card" data-side="0">
           <button type="button" class="card__pick" data-pick="0">
@@ -128,9 +131,10 @@
         </article>
       </div>
 
+      <!-- 左右どちらでもない答え（第1ステージのみ） -->
       <div class="bactions">
+        <button type="button" class="btn btn--ghost btn--small" data-action="defer">後に回す</button>
         <button type="button" class="btn btn--ghost btn--small" data-action="remove-both">どちらも候補外</button>
-        <button type="button" class="btn btn--ghost btn--small" data-action="undo">ひとつ戻る</button>
       </div>
       <p class="bhint" data-remove-hint>「どちらも候補外」を選ぶと、2曲ともにTOP10候補から外れますが、全体の選択回数が減ります。
       </p>

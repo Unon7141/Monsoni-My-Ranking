@@ -296,9 +296,13 @@
     $("[data-remaining]").textContent = engine.remainingEstimate();
     $("[data-candidates]").textContent = ph === 1 ? st.pool.filter((i) => st.state[i] !== -1).length : st.K;
     $('[data-action="remove-both"]').hidden = ph !== 1;
+    // 「後に回す」は第1ステージだけ。ほかに出せる組み合わせがないときは押せない見た目にする
+    const deferBtn = $('[data-action="defer"]');
+    deferBtn.hidden = ph !== 1;
+    deferBtn.setAttribute("aria-disabled", String(ph !== 1 || !engine.canDefer(pair[0], pair[1])));
     $("[data-remove-hint]").hidden = ph !== 1;
     $(".bhint--keys").textContent = ph === 1
-      ? "キーボード: ← → で選ぶ ／ ↓ で両方候補外 ／ Backspace で戻る"
+      ? "キーボード: ← → で選ぶ ／ ↑ で後に回す ／ ↓ で両方候補外 ／ Backspace で戻る"
       : "キーボード: ← → で選ぶ ／ Backspace で戻る";
     $$('#screen-battle [data-action="undo"]').forEach((b) => (b.disabled = !engine.history.length));
 
@@ -439,6 +443,22 @@
     const gone = before - engine.status().P;
     toast(gone > 2 ? `いまの2曲と、それより好みでない${gone - 2}曲が候補外になりました` : "2曲が候補外になりました");
     setTimeout(() => { if (!$("#screen-battle").hidden) proceed(true); }, delay);
+  }
+
+  function deferPair() {
+    if (deciding || !pair || engine.phase !== 1) return;
+    releaseFocus();
+    if (!engine.canDefer(pair[0], pair[1])) {
+      toast("この2曲はいま比べる必要があるため、後に回せません");
+      return;
+    }
+    deciding = true;
+    const arena = $("[data-arena]");
+    arena.classList.add("is-deciding");
+    $$(".card", arena).forEach((c) => c.classList.add("is-lost"));
+    engine.defer(pair[0], pair[1]);
+    save();
+    setTimeout(() => { if (!$("#screen-battle").hidden) renderBattle(true); }, reduceMotion() ? 0 : 220);
   }
 
   function undo() {
@@ -684,6 +704,7 @@
       }
       case "home": closeListen(); return renderStart();
       case "remove-both": return removeBoth();
+      case "defer": return deferPair();
       case "undo": return undo();
       case "to-phase2": return proceed(false);
       case "peek-top": return setLineupHidden(false);
@@ -707,6 +728,7 @@
     if (ev.key === "ArrowLeft" || ev.key === "1") { ev.preventDefault(); choose(0); }
     else if (ev.key === "ArrowRight" || ev.key === "2") { ev.preventDefault(); choose(1); }
     else if (ev.key === "ArrowDown" && engine && engine.phase === 1) { ev.preventDefault(); removeBoth(); }
+    else if (ev.key === "ArrowUp" && engine && engine.phase === 1) { ev.preventDefault(); deferPair(); }
     else if (ev.key === "Backspace" || ev.key === "z") { ev.preventDefault(); undo(); }
   });
 
