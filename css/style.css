@@ -1,5 +1,5 @@
 /* =========================================================
-   モンソニ！楽曲ソート
+   モンソニ！楽曲マイランキング
    テーマ: ライブ会場の客席。UIは暗く静かに、色はユニットのペンライトだけ。
    シグネチャー: 養生テープで床に貼られた手書きセットリスト。
    ========================================================= */
@@ -260,7 +260,7 @@ img { display: block; max-width: 100%; }
   margin: 0 0 16px;
   font-family: var(--f-display);
   font-weight: 400;
-  font-size: clamp(44px, 13vw, 76px);
+  font-size: clamp(38px, 11vw, 72px);
   line-height: 1.08;
   letter-spacing: -0.01em;
 }
@@ -270,7 +270,7 @@ img { display: block; max-width: 100%; }
 .program { list-style: none; margin: 0 0 28px; padding: 0; display: grid; gap: 10px; }
 .program__item {
   display: grid;
-  grid-template-columns: 4.2em 1fr;
+  grid-template-columns: 6.4em 1fr;
   gap: 12px;
   align-items: start;
   padding: 12px 0;
@@ -622,6 +622,9 @@ img { display: block; max-width: 100%; }
 .listen__list a { color: var(--text); text-decoration-color: var(--rig); text-underline-offset: 3px; }
 .listen__list a:hover { text-decoration-color: currentColor; }
 
+.playlist { display: grid; justify-items: start; gap: 8px; margin: 0 0 16px; }
+.playlist__note { margin: 0; font-size: 11px; color: var(--dim); }
+
 .result__again { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
 /* ---------- 試聴シート ---------- */
@@ -640,6 +643,7 @@ img { display: block; max-width: 100%; }
 .sheet__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .sheet__title { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet__close { width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--stage); font-size: 20px; cursor: pointer; }
+.sheet__note { margin: 10px 2px 0; font-size: 11px; color: var(--dim); }
 .sheet__frame iframe { display: block; width: 100%; height: 152px; border: 0; border-radius: 12px; }
 
 /* ---------- トースト ---------- */

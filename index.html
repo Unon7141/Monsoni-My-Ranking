@@ -9,7 +9,7 @@
   <!-- 公開後、og:url と og:image を公開URLの絶対パスに書き換えてください（例: https://example.github.io/monsoni-sort/og.png） -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="モンソニ！楽曲ソート">
-  <meta property="og:description" content="2曲から好きなほうを選ぶだけ。あなたのモンソニ！TOP10セトリをつくろう。">
+  <meta property="og:description" content="あなただけのモンソニ！TOP10セトリをつくろう。">
   <meta property="og:image" content="og.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -28,17 +28,17 @@
       <div class="start">
         <div class="start__copy">
           <p class="eyebrow">非公式ファンメイド ・ 全<span data-total></span>曲</p>
-          <h1 id="start-title" class="start__title" tabindex="-1">モンソニ！<br>楽曲ソート</h1>
-          <p class="start__lead">2曲から好きなほうを選ぶだけ。くり返すうちに、あなたのTOP10が決まります。</p>
+          <h1 id="start-title" class="start__title" tabindex="-1">モンソニ！楽曲<br>マイランキング</h1>
+          <p class="start__lead">あなただけのモンソニ！TOP10セトリをつくろう！</p>
 
           <ol class="program" aria-label="進め方">
             <li class="program__item">
-              <span class="program__part">第1部</span>
-              <span class="program__body"><b>TOP10の10曲をしぼる</b>勝ち抜き形式。負けが重なった曲から自動で脱落します。</span>
+              <span class="program__part">第1ステージ</span>
+              <span class="program__body"><b>TOP10の10曲をしぼる</b></span>
             </li>
             <li class="program__item">
-              <span class="program__part">第2部</span>
-              <span class="program__body"><b>10曲の順位を決める</b>第1部の結果を引き継ぐので、残りはわずかです。</span>
+              <span class="program__part">第2ステージ</span>
+              <span class="program__body"><b>10曲の順位を決める</b></span>
             </li>
           </ol>
 
@@ -50,7 +50,7 @@
               全<span data-total></span>曲ではじめる <span class="btn__sub">約<span data-est-all></span>回</span>
             </button>
             <button type="button" class="btn btn--ghost" data-action="open-filter">
-              曲をしぼってはじめる <span class="btn__sub">知らない曲を外すと回数が減ります</span>
+              曲をしぼってはじめる <span class="btn__sub">曲を絞って始めると比較回数が減ります</span>
             </button>
           </div>
         </div>
@@ -65,15 +65,15 @@
           </div>
         </figure>
       </div>
-      <p class="credit">モンスターストライク「モンソニ！」の非公式ファンメイドです。楽曲情報とジャケット画像は Spotify より。</p>
+      <p class="credit">「モンソニ！」の非公式ファンメイドです。楽曲情報とジャケット画像は Spotify より。</p>
     </section>
 
     <!-- ===== 曲をしぼる ===== -->
     <section id="screen-filter" class="screen" aria-labelledby="filter-title" hidden>
       <header class="screen__head">
         <button type="button" class="link-back" data-action="home">← トップへ</button>
-        <h2 id="filter-title" class="screen__title" tabindex="-1">TOP10に入らない曲を外す</h2>
-        <p class="screen__lead">タップで外す／戻す。外した曲は対戦に出ません。</p>
+        <h2 id="filter-title" class="screen__title" tabindex="-1">対象外の楽曲を選ぶ</h2>
+        <p class="screen__lead">タップで外す／戻す</p>
         <div class="filter__bulk">
           <button type="button" class="chip" data-action="filter-all-in">全曲を戻す</button>
           <button type="button" class="chip" data-action="filter-all-out">全曲を外す</button>
@@ -82,7 +82,7 @@
       <div class="filter" data-filter-groups></div>
       <div class="dock">
         <button type="button" class="btn btn--primary dock__btn" data-action="start-filtered">
-          <span data-filter-count></span>曲ではじめる <span class="btn__sub">約<span data-filter-est></span>回</span>
+          <span data-filter-count></span>曲ではじめる <span class="btn__sub">想定回数：約<span data-filter-est></span>回</span>
         </button>
       </div>
     </section>
@@ -91,7 +91,7 @@
     <section id="screen-battle" class="screen screen--battle" aria-labelledby="battle-title" hidden>
       <header class="bhead">
         <div class="bhead__row">
-          <p class="bhead__part" data-phase-part>第1部</p>
+          <p class="bhead__part" data-phase-part>第1ステージ</p>
           <h2 id="battle-title" class="bhead__title" tabindex="-1" data-phase-title>TOP10の10曲をしぼる</h2>
           <p class="bhead__round"><span class="mono" data-round>1</span>戦目</p>
         </div>
@@ -105,7 +105,7 @@
         </p>
       </header>
 
-      <p class="arena__ask">どっちが好き？</p>
+      <p class="arena__ask">どちらが好み？</p>
       <div class="arena" data-arena>
         <article class="card" data-side="0">
           <button type="button" class="card__pick" data-pick="0">
@@ -132,7 +132,8 @@
         <button type="button" class="btn btn--ghost btn--small" data-action="remove-both">どちらもTOP10外</button>
         <button type="button" class="btn btn--ghost btn--small" data-action="undo">ひとつ戻る</button>
       </div>
-      <p class="bhint" data-remove-hint>「どちらもTOP10外」は、この2曲と、これまでにこの2曲に負けた曲をまとめて外します。</p>
+      <p class="bhint" data-remove-hint>「どちらもTOP10外」を選ぶと、2曲ともにTOP10に入る可能性がなくなりますが、全体の選択回数を減ります。
+      </p>
       <p class="bhint bhint--keys">キーボード: ← → で選ぶ ／ ↓ で両方外す ／ Backspace で戻る</p>
       <button type="button" class="link-back link-back--foot" data-action="home">中断してトップへ（進行は保存されます）</button>
     </section>
@@ -140,7 +141,7 @@
     <!-- ===== 幕間 ===== -->
     <section id="screen-interlude" class="screen" aria-labelledby="interlude-title" hidden>
       <header class="screen__head screen__head--center">
-        <p class="eyebrow">第1部 終了</p>
+        <p class="eyebrow">第1ステージ 終了</p>
         <h2 id="interlude-title" class="screen__title" tabindex="-1" data-interlude-title>TOP10の10曲が決まりました</h2>
         <p class="screen__lead" data-interlude-lead></p>
       </header>
@@ -188,7 +189,7 @@
           <button type="button" class="btn btn--ghost btn--small" data-action="restart">もう一度あそぶ</button>
         </div>
       </div>
-      <p class="credit">モンスターストライク「モンソニ！」の非公式ファンメイドです。楽曲情報とジャケット画像は Spotify より。</p>
+      <p class="credit">「モンソニ！」の非公式ファンメイドです。楽曲情報とジャケット画像は Spotify より。</p>
     </section>
   </main>
 

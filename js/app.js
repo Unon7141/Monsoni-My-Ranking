@@ -173,7 +173,7 @@
       const e = new SortEngine(N, saved);
       resume.hidden = false;
       $("[data-resume-label]").textContent =
-        e.phase === 3 ? "結果を見る" : `${e.phase === 1 ? "第1部" : "第2部"}・${e.comparisons + 1}戦目から`;
+        e.phase === 3 ? "結果を見る" : `${e.phase === 1 ? "第1ステージ" : "第2ステージ"}・${e.comparisons + 1}戦目から`;
       $('[data-action="start-all"]').classList.replace("btn--primary", "btn--ghost");
     } else {
       resume.hidden = true;
@@ -253,7 +253,7 @@
   }
 
   // ---------- 進行 ----------
-  // prevPhase: 直前のフェーズ（第1部→第2部に移ったら幕間を挟む）
+  // 第1ステージ→第2ステージに移ったら幕間を挟む
   function proceed(fromPhase1) {
     const ph = engine.phase;
     if (fromPhase1 && ph !== 1) return renderInterlude();
@@ -267,7 +267,7 @@
     if (!pair) return renderResult();
 
     const ph = st.phase;
-    $("[data-phase-part]").textContent = ph === 1 ? "第1部" : "第2部";
+    $("[data-phase-part]").textContent = ph === 1 ? "第1ステージ" : "第2ステージ";
     $("[data-phase-title]").textContent = ph === 1 ? `TOP${st.K}の${st.K}曲をしぼる` : `${st.K}曲の順位を決める`;
     $("[data-round]").textContent = engine.comparisons + 1;
     $("[data-confirm-label]").textContent = `TOP${st.K}確定`;
@@ -276,6 +276,9 @@
     $("[data-candidates]").textContent = ph === 1 ? st.pool.filter((i) => st.state[i] !== -1).length : st.K;
     $('[data-action="remove-both"]').hidden = ph !== 1;
     $("[data-remove-hint]").hidden = ph !== 1;
+    $(".bhint--keys").textContent = ph === 1
+      ? "キーボード: ← → で選ぶ ／ ↓ で両方外す ／ Backspace で戻る"
+      : "キーボード: ← → で選ぶ ／ Backspace で戻る";
     $$('#screen-battle [data-action="undo"]').forEach((b) => (b.disabled = !engine.history.length));
 
     renderPenlights(st);
@@ -363,6 +366,8 @@
     const cards = $$(".card", arena);
     cards[side].classList.add("is-chosen");
     cards[1 - side].classList.add("is-lost");
+    // クリックしたカードにフォーカスが残ると、次にキーを押したとき枠が出続けるので見出しへ移す
+    if (arena.contains(document.activeElement)) $("#battle-title").focus({ preventScroll: true });
     const wasPhase1 = engine.phase === 1;
     engine.choose(w, l);
     save();
@@ -410,12 +415,12 @@
     $("[data-interlude-title]").textContent = `TOP${st.K}の${st.K}曲が決まりました`;
     const btn = $('[data-action="to-phase2"]');
     if (st.phase === 3) {
-      $("[data-interlude-lead]").textContent = "第1部の結果だけで、順位まで決まりました。";
+      $("[data-interlude-lead]").textContent = "第1ステージの結果だけで、順位まで決まりました。";
       btn.innerHTML = "結果を見る";
     } else {
       const rest = engine.remainingEstimate();
-      $("[data-interlude-lead]").textContent = `第2部では、この${st.K}曲の順位を決めます。第1部の結果を引き継ぐので、あと約${rest}回です。`;
-      btn.innerHTML = `第2部をはじめる <span class="btn__sub">あと約${rest}回</span>`;
+      $("[data-interlude-lead]").textContent = `第2ステージでは、この${st.K}曲の順位を決めます。第1ステージの結果を引き継ぐので、あと約${rest}回です。`;
+      btn.innerHTML = `第2ステージをはじめる <span class="btn__sub">あと約${rest}回</span>`;
     }
     show("screen-interlude");
   }
@@ -456,7 +461,19 @@
     list.innerHTML = songs
       .map((s) => `<li><a href="https://open.spotify.com/track/${s.id}" target="_blank" rel="noopener">${esc(s.t)}</a></li>`)
       .join("");
-    $("[data-listen-list]").closest("details").querySelector("summary").textContent = `この${songs.length}曲を Spotify で聴く`;
+    const details = $("[data-listen-list]").closest("details");
+    $("summary", details).textContent = `この${songs.length}曲を Spotify で聴く`;
+    // プレイリストづくり（Spotify デスクトップアプリに曲リンクを貼り付ける）
+    let pl = $(".playlist", details);
+    if (!pl) {
+      pl = document.createElement("div");
+      pl.className = "playlist";
+      pl.innerHTML = `<button type="button" class="btn btn--ghost btn--small" data-action="copy-playlist"></button><p class="playlist__note"></p>`;
+      details.appendChild(pl);
+    }
+    $("button", pl).textContent = `プレイリスト用に${songs.length}曲をコピー`;
+    $(".playlist__note", pl).textContent =
+      `Spotify のデスクトップアプリで新しいプレイリストを開き、Ctrl+V（Mac は ⌘V）で貼り付けると、この順番で${songs.length}曲が追加されます。スマホのアプリでは貼り付けできません。`;
 
     const canFileShare = !!(navigator.canShare && navigator.share &&
       navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] }));
@@ -509,19 +526,27 @@
     }
   }
 
-  async function copyText() {
-    const text = Share.plainText(rankingSongs(), siteUrl());
+  async function copyToClipboard(text, done) {
     try {
       await navigator.clipboard.writeText(text);
-      toast("テキストをコピーしました");
+      toast(done);
     } catch (e) {
       const ta = document.createElement("textarea");
       ta.value = text;
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand("copy"); toast("テキストをコピーしました"); } catch (e2) { toast("コピーできませんでした"); }
+      try { document.execCommand("copy"); toast(done); } catch (e2) { toast("コピーできませんでした"); }
       ta.remove();
     }
+  }
+
+  function copyText() {
+    return copyToClipboard(Share.plainText(rankingSongs(), siteUrl()), "テキストをコピーしました");
+  }
+
+  function copyPlaylist() {
+    const links = rankingSongs().map((s) => `https://open.spotify.com/track/${s.id}`).join("\n");
+    return copyToClipboard(links, "曲のリンクをコピーしました。Spotify のプレイリストに貼り付けてください");
   }
 
   // ---------- 試聴 ----------
@@ -530,7 +555,8 @@
     const s = SONGS[pair[side]];
     $("[data-sheet-title]").textContent = `${s.t} ／ ${s.u}`;
     $("[data-sheet-frame]").innerHTML =
-      `<iframe title="Spotify: ${esc(s.t)}" src="https://open.spotify.com/embed/track/${s.id}?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
+      `<iframe title="Spotify: ${esc(s.t)}" src="https://open.spotify.com/embed/track/${s.id}?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>` +
+      `<p class="sheet__note">※ Spotify の試聴で流れる部分は Spotify 側で決まるため、サビなどの聴きどころが流れるとは限りません。</p>`;
     $("[data-sheet]").hidden = false;
     $(".sheet__close").focus();
   }
@@ -584,6 +610,7 @@
       case "share-x": return shareX();
       case "share-image": return shareImage();
       case "copy-text": return copyText();
+      case "copy-playlist": return copyPlaylist();
       case "restart":
         clearSaved();
         engine = null;
@@ -599,7 +626,7 @@
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.key === "ArrowLeft" || ev.key === "1") { ev.preventDefault(); choose(0); }
     else if (ev.key === "ArrowRight" || ev.key === "2") { ev.preventDefault(); choose(1); }
-    else if (ev.key === "ArrowDown") { ev.preventDefault(); removeBoth(); }
+    else if (ev.key === "ArrowDown" && engine && engine.phase === 1) { ev.preventDefault(); removeBoth(); }
     else if (ev.key === "Backspace" || ev.key === "z") { ev.preventDefault(); undo(); }
   });
 

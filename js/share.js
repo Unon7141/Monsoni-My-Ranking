@@ -2,7 +2,7 @@
 (function (global) {
   "use strict";
 
-  const HASHTAG = "#モンソニ楽曲ソート";
+  const HASHTAG = "#モンソニマイランキング";
   const X_LIMIT = 280;
   const URL_WEIGHT = 23;
 
@@ -100,7 +100,7 @@
     const W = 1080, H = 1350;
     const hand = '"Yusei Magic", "Zen Kaku Gothic New", sans-serif';
     const body = '"Zen Kaku Gothic New", sans-serif';
-    const allText = songs.map((s) => s.t + s.u).join("") + "MONSONI!SETLIST0123456789TOP.#モンソニ楽曲ソート" + (siteLabel || "") + (dateLabel || "");
+    const allText = songs.map((s) => s.t + s.u).join("") + "MONSONI!SETLIST0123456789TOP.#モンソニマイランキング" + (siteLabel || "") + (dateLabel || "");
     if (document.fonts && document.fonts.load) {
       await Promise.all([
         document.fonts.load(`40px "Yusei Magic"`, allText),

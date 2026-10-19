@@ -35,7 +35,7 @@ window.MONSONI_SONGS = [
   {"id": "0bRridsolKbbwSKv0XCl1T", "t": "鯛・餡・来・福", "u": "えび天娘。", "img": "ab67616d00001e026f601e4979b58a23a18c6a97"},
   {"id": "52HKdWi7HI6rrfIQTmocmw", "t": "キル×キラ×killer★", "u": "キル×ユア×アイドル", "img": "ab67616d00001e02db1057e0f64b3d7edd28ade9"},
   {"id": "4ggyXzBfJxJ9aFK5x0qAtc", "t": "Perfect Glory 〜旋律の彼方へ〜", "u": "Haitoku Pistols", "img": "ab67616d00001e029e4ad60999b169f44536cfb6", "note": "Piano Edition short ver."},
-  {"id": "6UU39sBXPJbw5hr87Fr3Oe", "t": "キズナ Sparkling World", "u": "Two for all", "img": "ab67616d00001e02e98fb5adb857853fa3aacf2b", "note": "Two for all Edition short ver."},
+  {"id": "6UU39sBXPJbw5hr87Fr3Oe", "t": "キズナ Sparkling World (Two for all Edition)", "u": "Two for all", "img": "ab67616d00001e02e98fb5adb857853fa3aacf2b", "note": "Two for all Edition short ver."},
   {"id": "21Vnrt4hgFskYtxcojxVU1", "t": "全力アイドル宣言", "u": "Two for all", "img": "ab67616d00001e02e98fb5adb857853fa3aacf2b", "note": "Two for all Edition short ver."},
   {"id": "4enEXQYbyPBwNm39eJ3gQB", "t": "Supernova", "u": "さよならグラビティ", "img": "ab67616d00001e022793ac1ccce172b37a22b152"},
   {"id": "1goSWTfyIYEqMqEprF1d2H", "t": "Glitter", "u": "Two for all", "img": "ab67616d00001e02249a805f5eba33f005a72013"},
