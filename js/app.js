@@ -33,6 +33,7 @@
     window.MONSONI_IMG_BASE + (size >= 600 ? s.img.replace("00001e02", "0000b273") : s.img);
 
   const STORE_KEY = "monsoni-sort:v1";
+  const FILTER_KEY = "monsoni-sort:filter:v1";
   const SIG = SONGS.map((s) => s.id).join("").length + ":" + SONGS.map((s) => s.id.slice(0, 3)).join("");
 
   const $ = (sel, root) => (root || document).querySelector(sel);
@@ -60,10 +61,86 @@
   function clearSaved() {
     try { localStorage.removeItem(STORE_KEY); } catch (e) { /* noop */ }
   }
+  // 途中の結果があれば、新しくはじめる前に確認する
+  function confirmDiscard() {
+    const saved = loadSaved();
+    return !(saved && saved.history.length) || window.confirm("途中の結果は消えます。新しくはじめますか？");
+  }
+
+  // 曲をしぼる画面の選択（下書き）
+  function saveFilter() {
+    try {
+      if (filterOut.size) localStorage.setItem(FILTER_KEY, JSON.stringify({ sig: SIG, out: [...filterOut] }));
+      else localStorage.removeItem(FILTER_KEY);
+    } catch (e) { /* noop */ }
+  }
+  function loadFilter() {
+    try {
+      const d = JSON.parse(localStorage.getItem(FILTER_KEY) || "null");
+      if (d && d.sig === SIG && Array.isArray(d.out))
+        d.out.forEach((i) => { if (Number.isInteger(i) && i >= 0 && i < N) filterOut.add(i); });
+    } catch (e) { /* noop */ }
+  }
+  function clearFilter() {
+    filterOut.clear();
+    try { localStorage.removeItem(FILTER_KEY); } catch (e) { /* noop */ }
+  }
+
+  // ---------- URL（#/filter など。スタートはハッシュなし） ----------
+  // 履歴は画面が変わるときだけ積む。対戦・幕間・結果のあいだの移動は置き換えるので、
+  // ブラウザの「戻る」はひとつ戻るではなく、ゲームに入る前の画面に戻る。
+  const ROUTES = { "screen-filter": "filter", "screen-battle": "battle", "screen-interlude": "interlude", "screen-result": "result" };
+  const IN_GAME = new Set(["battle", "interlude", "result"]);
+  let navReplace = false;
+  let shownRoute = null;
+
+  function routeOfHash() {
+    const m = /^#\/(\w+)$/.exec(location.hash);
+    return m ? m[1] : "";
+  }
+  function syncRoute(id) {
+    const name = ROUTES[id] || "";
+    const cur = routeOfHash();
+    shownRoute = name;
+    if (cur === name && location.hash === (name ? "#/" + name : "")) return;
+    const replace = navReplace || (IN_GAME.has(cur) && IN_GAME.has(name));
+    try {
+      history[replace ? "replaceState" : "pushState"](null, "", name ? "#/" + name : location.pathname + location.search);
+    } catch (e) { /* noop */ }
+  }
+  function replacing(fn) {
+    navReplace = true;
+    try { return fn(); } finally { navReplace = false; }
+  }
+
+  // 保存された進行を正として、ハッシュはその状態で見せられる画面を選ぶだけ
+  function route(name) {
+    if (name === "filter") return renderFilter();
+    if (!engine && IN_GAME.has(name)) {
+      const saved = loadSaved();
+      if (saved) engine = new SortEngine(N, saved);
+    }
+    if (!engine || !IN_GAME.has(name)) return renderStart();
+    const ph = engine.phase;
+    if (name === "interlude" && ph >= 2) return renderInterlude();
+    if (ph === 3) return renderResult();
+    renderBattle(true);
+  }
+  function onNav(force) {
+    const name = routeOfHash();
+    if (force !== true && name === shownRoute) return;
+    replacing(() => {
+      route(name);
+      const cur = $$(".screen").find((s) => !s.hidden);
+      if (cur) syncRoute(cur.id);
+    });
+  }
 
   // ---------- 画面切替 ----------
   function show(id) {
     $$(".screen").forEach((s) => { s.hidden = s.id !== id; });
+    if (id !== "screen-battle") closeListen();
+    syncRoute(id);
     window.scrollTo(0, 0);
     const h = $(`#${id} [tabindex="-1"]`);
     if (h) h.focus({ preventScroll: true });
@@ -168,6 +245,7 @@
       const ids = $$(".tile", g).map((t) => +t.dataset.song);
       $("[data-unit-toggle]", g).textContent = ids.every((i) => filterOut.has(i)) ? "まとめて戻す" : "まとめて外す";
     });
+    saveFilter();
     const P = N - filterOut.size;
     $("[data-filter-count]").textContent = P;
     $("[data-filter-est]").textContent = SortEngine.estimateTotal(P, K);
@@ -288,7 +366,7 @@
     const wasPhase1 = engine.phase === 1;
     engine.choose(w, l);
     save();
-    setTimeout(() => proceed(wasPhase1), reduceMotion() ? 0 : 280);
+    setTimeout(() => { if (!$("#screen-battle").hidden) proceed(wasPhase1); }, reduceMotion() ? 0 : 280);
   }
 
   function removeBoth() {
@@ -302,7 +380,7 @@
     save();
     const gone = before - engine.status().P;
     toast(gone > 2 ? `2曲と、それに負けた${gone - 2}曲を外しました` : "2曲を外しました");
-    setTimeout(() => proceed(true), reduceMotion() ? 0 : 260);
+    setTimeout(() => { if (!$("#screen-battle").hidden) proceed(true); }, reduceMotion() ? 0 : 260);
   }
 
   function undo() {
@@ -311,7 +389,6 @@
     engine.undo();
     save();
     renderBattle(true);
-    if ($("#screen-battle").hidden) show("screen-battle");
     toast("ひとつ戻りました");
   }
 
@@ -481,9 +558,17 @@
     const act = ev.target.closest("[data-action]");
     if (!act) return;
     switch (act.dataset.action) {
-      case "start-all": return startEngine([]);
+      case "start-all":
+        if (!confirmDiscard()) return;
+        return startEngine([]);
       case "open-filter": return renderFilter();
-      case "start-filtered": return startEngine([...filterOut]);
+      case "start-filtered": {
+        if (!confirmDiscard()) return;
+        const excluded = [...filterOut];
+        clearFilter();
+        // しぼる画面の履歴は対戦に置き換える
+        return replacing(() => startEngine(excluded));
+      }
       case "filter-all-in": filterOut.clear(); return syncFilter();
       case "filter-all-out": SONGS.forEach((_, i) => filterOut.add(i)); return syncFilter();
       case "resume": {
@@ -502,8 +587,8 @@
       case "restart":
         clearSaved();
         engine = null;
-        filterOut.clear();
-        return renderStart();
+        clearFilter();
+        return replacing(renderStart);
       case "close-sheet": return closeListen();
     }
   });
@@ -518,5 +603,9 @@
     else if (ev.key === "Backspace" || ev.key === "z") { ev.preventDefault(); undo(); }
   });
 
-  renderStart();
+  window.addEventListener("popstate", onNav);
+  window.addEventListener("hashchange", onNav);
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  loadFilter();
+  onNav(true);
 })();
