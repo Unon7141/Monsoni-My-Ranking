@@ -94,9 +94,10 @@
     ctx.restore();
   }
 
-  // 1080x1350（4:5）のセトリ画像
+  // 1080x1350（4:5）のセトリ画像。colorOf は1色（文字列）か2色（配列）を返す
   async function drawImage(songs, opts) {
-    const { colorOf, imgUrl, siteLabel, dateLabel } = opts;
+    const { imgUrl, siteLabel, dateLabel } = opts;
+    const colorsOf = (s) => [].concat(opts.colorOf(s));
     const W = 1080, H = 1350;
     const hand = '"Yusei Magic", "Zen Kaku Gothic New", sans-serif';
     const body = '"Zen Kaku Gothic New", sans-serif';
@@ -126,7 +127,7 @@
       ctx.fillRect(0, 0, W, H);
     };
     glow(W / 2, -80, 700, "rgba(242,238,255,0.13)");
-    songs.slice(0, 5).forEach((s, i) => glow(120 + i * 210, H + 60, 300, hexA(colorOf(s), 0.22)));
+    songs.slice(0, 5).forEach((s, i) => glow(120 + i * 210, H + 60, 300, hexA(colorsOf(s)[0], 0.22)));
 
     // 紙
     const px = 90, py = 92, pw = W - 180, ph = H - 230;
@@ -171,7 +172,7 @@
       const ax = left + numW;
       if (art) ctx.drawImage(art, ax, mid - artS / 2, artS, artS);
       else {
-        ctx.fillStyle = colorOf(s);
+        ctx.fillStyle = colorsOf(s)[0];
         ctx.fillRect(ax, mid - artS / 2, artS, artS);
       }
       const tx = ax + artS + 22;
@@ -180,11 +181,19 @@
       const titleSize = i === 0 ? 46 : i < 3 ? 38 : 33;
       const t = fitText(ctx, s.t, maxW, titleSize, 22, hand);
       ctx.fillText(t, tx, mid + 4);
-      // ユニット
-      ctx.fillStyle = colorOf(s);
+      // ユニット（2色なら左右に塗り分け）
+      const [c1, c2] = colorsOf(s);
+      ctx.fillStyle = c1;
       ctx.beginPath();
-      ctx.arc(tx + 7, mid + 30, 7, 0, Math.PI * 2);
+      if (c2) ctx.arc(tx + 7, mid + 30, 7, Math.PI / 2, Math.PI * 1.5);
+      else ctx.arc(tx + 7, mid + 30, 7, 0, Math.PI * 2);
       ctx.fill();
+      if (c2) {
+        ctx.fillStyle = c2;
+        ctx.beginPath();
+        ctx.arc(tx + 7, mid + 30, 7, -Math.PI / 2, Math.PI / 2);
+        ctx.fill();
+      }
       ctx.fillStyle = soft;
       const meta = s.note ? `${s.u} ・ ${s.note}` : s.u;
       ctx.font = `500 21px ${body}`;

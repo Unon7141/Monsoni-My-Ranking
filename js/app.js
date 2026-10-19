@@ -6,29 +6,37 @@
   const K = 10;
   const Share = window.MonsoniShare;
 
-  // ユニットごとのペンライト色（ファンメイドの割り当て）
+  // ユニットの色（公式バナーから。2色のユニットは配列）
   const UNIT_COLORS = {
-    "Haitoku Pistols": "#ff4d5e",
-    "Two for all": "#ff8ad8",
-    "デビルズ・パンク・インフェルノ": "#b26bff",
-    "Angely Diva": "#ffd84d",
-    "幕末リザレクション": "#4da3ff",
-    "モノノケ少女": "#7cf29a",
-    "白雪姫リボン": "#f4f2ff",
-    "終末運命共同隊": "#ff9a3d",
-    "骸": "#9aa4c8",
-    "えび天娘。": "#ff7a59",
-    "キル×ユア×アイドル": "#ff2e9a",
-    "さよならグラビティ": "#5ce1e6",
-    "マジカル☆メルルンず": "#e6a3ff",
-    "ヤバい女子高生たち、": "#c6f04d",
-    "アンドロイドダイナー": "#4dffd2",
-    "カルマロックスター": "#7f7bff",
-    "東方萌萌美人": "#ffb3c7",
-    "CALEzMA": "#3d8bff",
-    "アンダーワールド・トラベラーズ": "#6ee7b7",
+    "Haitoku Pistols": "#6b6b70",
+    "Two for all": ["#ff1b99", "#71bfff"],
+    "デビルズ・パンク・インフェルノ": "#a3302a",
+    "Angely Diva": "#fae18e",
+    "幕末リザレクション": "#239723",
+    "モノノケ少女": "#9b22b8",
+    "白雪姫リボン": "#fcb2e3",
+    "終末運命共同隊": "#18fafa",
+    "骸": "#56655b",
+    "えび天娘。": "#e3cb5a",
+    "キル×ユア×アイドル": "#e60032c2",
+    "さよならグラビティ": "#8acbf0",
+    "マジカル☆メルルンず": "#7a645a",
+    "ヤバい女子高生たち、": ["#4b4fc8", "#e02a2a"],
+    "アンドロイドダイナー": ["#2fbf6a", "#e2e033"],
+    "カルマロックスター": ["#b62d3f", "#683ae8"],
+    "東方萌萌美人": ["#d53fc7", "#e8d23a"],
+    "CALEzMA": ["#2aa9c9", "#d38bc8"],
+    "アンダーワールド・トラベラーズ": ["#7a4a86", "#3fa58f"],
   };
-  const colorOf = (s) => UNIT_COLORS[s.u] || "#bbb3e0";
+  const unitColors = (u) => [].concat(UNIT_COLORS[u] || "#bbb3e0");
+  const colorsOf = (s) => unitColors(s.u);
+  // --c に1色目、--c2 に2色目（1色のユニットは --c2 なし）
+  function setUnitColors(el, u) {
+    const [c, c2] = unitColors(u);
+    el.style.setProperty("--c", c);
+    if (c2) el.style.setProperty("--c2", c2);
+    else el.style.removeProperty("--c2");
+  }
   const imgUrl = (s, size) =>
     window.MONSONI_IMG_BASE + (size >= 600 ? s.img.replace("00001e02", "0000b273") : s.img);
 
@@ -201,7 +209,7 @@
       for (const [unit, ids] of groups) {
         const g = document.createElement("section");
         g.className = "fgroup";
-        g.style.setProperty("--c", UNIT_COLORS[unit] || "#bbb3e0");
+        setUnitColors(g, unit);
         g.innerHTML = `
           <div class="fgroup__head">
             <h3 class="fgroup__name"><span class="penlight-dot" aria-hidden="true"></span>${esc(unit)} <span class="fgroup__count">${ids.length}曲</span></h3>
@@ -261,7 +269,7 @@
     renderBattle(true);
   }
 
-  function renderBattle(withShow) {
+  function renderBattle(withShow, fromUndo) {
     const st = engine.status();
     pair = engine.nextPair();
     if (!pair) return renderResult();
@@ -277,18 +285,19 @@
     $('[data-action="remove-both"]').hidden = ph !== 1;
     $("[data-remove-hint]").hidden = ph !== 1;
     $(".bhint--keys").textContent = ph === 1
-      ? "キーボード: ← → で選ぶ ／ ↓ で両方外す ／ Backspace で戻る"
+      ? "キーボード: ← → で選ぶ ／ ↓ で両方候補外 ／ Backspace で戻る"
       : "キーボード: ← → で選ぶ ／ Backspace で戻る";
     $$('#screen-battle [data-action="undo"]').forEach((b) => (b.disabled = !engine.history.length));
 
-    renderPenlights(st);
+    // 対戦画面を見ている途中で増えたときだけ灯す演出（再読み込み・ひとつ戻るでは出さない）
+    renderPenlights(st, !fromUndo && !$("#screen-battle").hidden);
 
     const arena = $("[data-arena]");
     arena.classList.remove("is-deciding");
     $$(".card", arena).forEach((card, side) => {
       const s = SONGS[pair[side]];
       card.classList.remove("is-chosen", "is-lost", "is-out");
-      card.style.setProperty("--c", colorOf(s));
+      setUnitColors(card, s.u);
       const img = $("img", card);
       img.classList.remove("is-loaded");
       img.onload = () => img.classList.add("is-loaded");
@@ -309,38 +318,61 @@
     preloadNext();
   }
 
-  let litBefore = new Set();
-  function renderPenlights(st) {
+  // ステージごとの進み具合（0〜1）。第2ステージは入ってからの回数で数える
+  function stageProgress() {
+    const start = engine.phase === 1 ? 0 : engine.phaseStartComparisons() || 0;
+    const done = engine.comparisons - start;
+    const rest = engine.remainingEstimate();
+    return done + rest > 0 ? done / (done + rest) : 1;
+  }
+
+  // ペンライト列: 進み具合 10% ごとに1本灯る。色は左から虹色
+  const STICKS = 10;
+  let litCount = 0;
+  function renderPenlights(st, animate) {
     const box = $("[data-penlights]");
-    const count = st.K;
-    box.style.setProperty("--count", count);
-    if (box.children.length !== count) {
+    if (box.children.length !== STICKS) {
       box.innerHTML = "";
-      for (let i = 0; i < count; i++) {
+      box.style.setProperty("--count", STICKS);
+      for (let i = 0; i < STICKS; i++) {
         const p = document.createElement("span");
         p.className = "penlight";
+        p.style.setProperty("--c", `hsl(${Math.round((i * 285) / (STICKS - 1))}, 100%, 62%)`);
         box.appendChild(p);
       }
     }
-    const lit = st.phase === 1 ? engine.ranking().filter((i) => st.state[i] === 1) : engine.ranking();
-    const sticks = $$(".penlight", box);
-    sticks.forEach((p, i) => {
-      const id = lit[i];
+    const progress = stageProgress();
+    const lit = Math.max(0, Math.min(STICKS, Math.floor(progress * STICKS)));
+    $$(".penlight", box).forEach((p, i) => {
       p.classList.remove("is-new");
-      if (id === undefined) {
-        p.classList.remove("is-on");
-        p.style.removeProperty("--c");
-        return;
-      }
-      p.classList.add("is-on");
-      p.style.setProperty("--c", colorOf(SONGS[id]));
-      if (!litBefore.has(id)) {
+      p.classList.toggle("is-on", i < lit);
+      if (animate && i >= litCount && i < lit) {
         void p.offsetWidth;
         p.classList.add("is-new");
       }
     });
-    litBefore = new Set(lit);
-    box.setAttribute("aria-label", `TOP${count} 確定 ${st.phase === 1 ? st.inC : count}曲`);
+    litCount = lit;
+    box.setAttribute("aria-label", `${st.phase === 1 ? "第1ステージ" : "第2ステージ"}の進み具合 ${Math.floor(progress * 100)}%`);
+  }
+
+  // ステージを終えた瞬間は、残りのペンライトを全部灯してから次へ進む
+  function fillPenlights() {
+    const box = $("[data-penlights]");
+    $$(".penlight", box).forEach((p, i) => {
+      p.classList.add("is-on");
+      if (i >= litCount) {
+        p.classList.remove("is-new");
+        void p.offsetWidth;
+        p.classList.add("is-new");
+      }
+    });
+    litCount = STICKS;
+    box.setAttribute("aria-label", "進み具合 100%");
+  }
+  function stageDelay(phaseBefore, base) {
+    if (engine.phase === phaseBefore) return reduceMotion() ? 0 : base;
+    fillPenlights();
+    return reduceMotion() ? 0 : 750;
   }
 
   // 次に出る可能性のある2組の画像を先読み
@@ -368,10 +400,10 @@
     cards[1 - side].classList.add("is-lost");
     // クリックしたカードにフォーカスが残ると、次にキーを押したとき枠が出続けるので見出しへ移す
     if (arena.contains(document.activeElement)) $("#battle-title").focus({ preventScroll: true });
-    const wasPhase1 = engine.phase === 1;
+    const phaseBefore = engine.phase;
     engine.choose(w, l);
     save();
-    setTimeout(() => { if (!$("#screen-battle").hidden) proceed(wasPhase1); }, reduceMotion() ? 0 : 280);
+    setTimeout(() => { if (!$("#screen-battle").hidden) proceed(phaseBefore === 1); }, stageDelay(phaseBefore, 280));
   }
 
   function removeBoth() {
@@ -383,9 +415,10 @@
     $$(".card", arena).forEach((c) => c.classList.add("is-out"));
     engine.removeBoth(pair[0], pair[1]);
     save();
+    const delay = stageDelay(1, 260);
     const gone = before - engine.status().P;
-    toast(gone > 2 ? `2曲と、それに負けた${gone - 2}曲を外しました` : "2曲を外しました");
-    setTimeout(() => { if (!$("#screen-battle").hidden) proceed(true); }, reduceMotion() ? 0 : 260);
+    toast(gone > 2 ? `いまの2曲と、それより好みでない${gone - 2}曲が候補外になりました` : "2曲が候補外になりました");
+    setTimeout(() => { if (!$("#screen-battle").hidden) proceed(true); }, delay);
   }
 
   function undo() {
@@ -393,7 +426,7 @@
     deciding = false;
     engine.undo();
     save();
-    renderBattle(true);
+    renderBattle(true, true);
     toast("ひとつ戻りました");
   }
 
@@ -407,7 +440,7 @@
       const s = SONGS[i];
       const li = document.createElement("li");
       li.className = "lineup__item";
-      li.style.setProperty("--c", colorOf(s));
+      setUnitColors(li, s.u);
       li.style.animationDelay = `${n * 60}ms`;
       li.innerHTML = `<span class="lineup__art"><img src="${imgUrl(s, 300)}" alt="" width="300" height="300"></span><span class="lineup__title">${esc(s.t)}</span>`;
       ul.appendChild(li);
@@ -419,7 +452,7 @@
       btn.innerHTML = "結果を見る";
     } else {
       const rest = engine.remainingEstimate();
-      $("[data-interlude-lead]").textContent = `第2ステージでは、この${st.K}曲の順位を決めます。第1ステージの結果を引き継ぐので、あと約${rest}回です。`;
+      $("[data-interlude-lead]").textContent = `第2ステージでは、この${st.K}曲の順位が決まります。`;
       btn.innerHTML = `第2ステージをはじめる <span class="btn__sub">あと約${rest}回</span>`;
     }
     show("screen-interlude");
@@ -454,7 +487,8 @@
       li.innerHTML = `
         <span class="setlist__num">${i + 1}</span>
         <span class="setlist__song">${esc(s.t)}</span>
-        <span class="setlist__meta"><span class="setlist__dot" style="--c:${colorOf(s)}"></span>${esc(s.u)}${s.note ? ` ・ ${esc(s.note)}` : ""}</span>`;
+        <span class="setlist__meta"><span class="setlist__dot"></span>${esc(s.u)}${s.note ? ` ・ ${esc(s.note)}` : ""}</span>`;
+      setUnitColors($(".setlist__dot", li), s.u);
       rows.appendChild(li);
     });
     const list = $("[data-listen-list]");
@@ -499,7 +533,7 @@
       const songs = rankingSongs();
       const url = siteUrl();
       const blob = await Share.drawImage(songs, {
-        colorOf, imgUrl, dateLabel: dateLabel(),
+        colorOf: colorsOf, imgUrl, dateLabel: dateLabel(),
         siteLabel: url.replace(/^https?:\/\//, "").replace(/\/$/, ""),
       });
       if (!blob) throw new Error("no blob");

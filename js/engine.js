@@ -42,6 +42,7 @@
       this.seed = (opts.seed >>> 0) || 1;
       this.excluded = (opts.excluded || []).slice();
       this.history = (opts.history || []).slice();
+      this._p2 = null; // 第2部に入った位置の覚え書き { len, at }
       this._rebuild();
     }
 
@@ -198,26 +199,64 @@
 
     // ---- 操作 ----
     choose(winner, loser) {
-      this.history.push({ t: "c", w: winner, l: loser });
-      this._apply(this.history[this.history.length - 1]);
-      this._status = null;
+      this._push({ t: "c", w: winner, l: loser });
     }
 
     removeBoth(a, b) {
-      this.history.push({ t: "x", ids: [a, b] });
-      this._apply(this.history[this.history.length - 1]);
+      this._push({ t: "x", ids: [a, b] });
+    }
+
+    _push(h) {
+      this.history.push(h);
+      this._apply(h);
       this._status = null;
+      // 覚え書きは差分だけ更新する
+      const c = this._p2;
+      if (!c) return;
+      if (c.len !== this.history.length - 1) { this._p2 = null; return; }
+      c.len++;
+      if (c.at < 0 && this.status().phase >= 2) c.at = c.len;
     }
 
     undo() {
       if (!this.history.length) return null;
       const h = this.history.pop();
+      const c = this._p2;
       this._rebuild();
+      if (c) {
+        const L = this.history.length;
+        // 取り消した1件で第2部に入っていたなら、まだ第1部に戻る
+        this._p2 = c.len === L + 1 ? { len: L, at: c.at > L ? -1 : c.at } : null;
+      }
       return h;
     }
 
     get comparisons() {
       return this.history.filter((h) => h.t === "c").length;
+    }
+
+    // 第2部に入った時点までの比較回数（まだ第1部なら null）
+    phaseStartComparisons() {
+      const at = this._phase2At();
+      if (at < 0) return null;
+      let c = 0;
+      for (let i = 0; i < at; i++) if (this.history[i].t === "c") c++;
+      return c;
+    }
+
+    // 何件目の履歴で phase >= 2 になったか（まだなら -1）。
+    // 覚え書きがなければ履歴を頭から1件ずつ別のエンジンで再生して求める
+    _phase2At() {
+      const L = this.history.length;
+      if (this._p2 && this._p2.len === L) return this._p2.at;
+      const e = new SortEngine(this.n, { K: this.K, seed: this.seed, excluded: this.excluded });
+      let at = e.phase >= 2 ? 0 : -1;
+      for (let i = 0; at < 0 && i < L; i++) {
+        e._push(this.history[i]);
+        if (e.phase >= 2) at = i + 1;
+      }
+      this._p2 = { len: L, at };
+      return at;
     }
 
     // 現時点の順位（第2部完了後は確定順位）
