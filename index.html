@@ -152,7 +152,29 @@
       <ul class="lineup" data-lineup></ul>
       <div class="interlude__actions">
         <button type="button" class="btn btn--primary" data-action="to-phase2"></button>
+        <button type="button" class="btn btn--ghost btn--small" data-action="revive" aria-disabled="true">5曲まで復活させる</button>
         <button type="button" class="btn btn--ghost btn--small" data-action="undo">ひとつ戻る</button>
+      </div>
+
+      <!-- 復活させる曲を選ぶ -->
+      <div class="picker" data-picker hidden>
+        <div class="picker__backdrop" data-action="revive-cancel"></div>
+        <div class="picker__panel" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+          <div class="picker__bar">
+            <h3 id="picker-title" class="picker__title" tabindex="-1">復活させる曲を選ぶ</h3>
+            <span class="picker__count mono" data-picker-count aria-live="polite">0/5</span>
+          </div>
+          <p class="picker__lead" data-picker-lead></p>
+          <div class="picker__body">
+            <div class="fgroup__grid" data-picker-grid></div>
+            <h4 class="picker__sub" data-picker-removed-head>「どちらも候補外」にした曲</h4>
+            <div class="fgroup__grid" data-picker-removed></div>
+          </div>
+          <div class="picker__actions">
+            <button type="button" class="btn btn--ghost btn--small" data-action="revive-cancel">やめる</button>
+            <button type="button" class="btn btn--primary btn--small" data-action="revive-confirm"></button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -182,6 +204,21 @@
           <button type="button" class="btn btn--ghost" data-action="copy-text">テキストをコピー</button>
         </div>
         <p class="share__note" data-share-note>画像を添付したいときは、先に「画像を保存」してからポストに追加してください。</p>
+
+        <details class="listen adjust" data-adjust>
+          <summary>順位を手直しする</summary>
+          <p class="adjust__lead">↑↓ で順番を入れ替えられます。シェアする内容にも反映されます。</p>
+          <ul class="adjust__list" data-adjust-list></ul>
+          <div class="adjust__foot">
+            <button type="button" class="btn btn--ghost btn--small" data-action="adjust-reset">自動の順位に戻す</button>
+          </div>
+        </details>
+
+        <section class="more" data-more aria-labelledby="more-title" hidden>
+          <h3 id="more-title" class="more__title">ほかにも好きな曲</h3>
+          <p class="more__lead" data-more-lead></p>
+          <ul class="more__list" data-more-list></ul>
+        </section>
 
         <details class="listen">
           <summary>この10曲を Spotify で聴く</summary>

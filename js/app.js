@@ -4,6 +4,7 @@
   const SONGS = window.MONSONI_SONGS;
   const N = SONGS.length;
   const K = 10;
+  const MAX_REVIVE = SortEngine.MAX_REVIVE || 5;
   const Share = window.MonsoniShare;
 
   // ユニットの色（公式バナーから。2色のユニットは配列）
@@ -51,13 +52,22 @@
   let pair = null;
   let deciding = false;
   const filterOut = new Set();
+  // 結果画面での手直し { len: 手直ししたときの履歴の長さ, ids }。履歴が変わったら捨てる
+  let manual = null;
+  let peeked = false;
 
   // ---------- 保存 ----------
   function save() {
     if (!engine) return;
+    if (manual && manual.len !== engine.history.length) manual = null;
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ sig: SIG, ...engine.serialize(), at: Date.now() }));
+      localStorage.setItem(STORE_KEY, JSON.stringify({ sig: SIG, ...engine.serialize(), manual, at: Date.now() }));
     } catch (e) { /* 保存できなくても遊べる */ }
+  }
+  function loadEngine(saved) {
+    engine = new SortEngine(N, saved);
+    const m = saved.manual;
+    manual = m && m.len === engine.history.length && Array.isArray(m.ids) ? m : null;
   }
   function loadSaved() {
     try {
@@ -126,7 +136,7 @@
     if (name === "filter") return renderFilter();
     if (!engine && IN_GAME.has(name)) {
       const saved = loadSaved();
-      if (saved) engine = new SortEngine(N, saved);
+      if (saved) loadEngine(saved);
     }
     if (!engine || !IN_GAME.has(name)) return renderStart();
     const ph = engine.phase;
@@ -148,6 +158,7 @@
   function show(id) {
     $$(".screen").forEach((s) => { s.hidden = s.id !== id; });
     if (id !== "screen-battle") closeListen();
+    if (id !== "screen-interlude") closePicker(true);
     syncRoute(id);
     window.scrollTo(0, 0);
     const h = $(`#${id} [tabindex="-1"]`);
@@ -193,6 +204,7 @@
   function startEngine(excluded) {
     const seed = (Math.random() * 2 ** 31) >>> 0 || 7;
     engine = new SortEngine(N, { K, seed, excluded });
+    manual = null;
     save();
     proceed(false);
   }
@@ -255,7 +267,7 @@
   }
 
   function syncFilter() {
-    $$(".tile").forEach((t) => t.setAttribute("aria-pressed", String(!filterOut.has(+t.dataset.song))));
+    $$(".tile", $("[data-filter-groups]")).forEach((t) => t.setAttribute("aria-pressed", String(!filterOut.has(+t.dataset.song))));
     $$(".fgroup").forEach((g) => {
       const ids = $$(".tile", g).map((t) => +t.dataset.song);
       $("[data-unit-toggle]", g).textContent = ids.every((i) => filterOut.has(i)) ? "まとめて戻す" : "まとめて外す";
@@ -283,7 +295,10 @@
 
     const ph = st.phase;
     $("[data-phase-part]").textContent = ph === 1 ? "第1ステージ" : "第2ステージ";
-    $("[data-phase-title]").textContent = ph === 1 ? `TOP${st.K}の${st.K}曲をしぼる` : `${st.K}曲の順位を決める`;
+    // 復活させた曲があるときは、候補（TOP-K ＋ 復活曲）の中から TOP-K とその順位を決める
+    const revived = engine.revived.length > 0 && st.P > st.K;
+    $("[data-phase-title]").textContent = ph === 1 ? `TOP${st.K}の${st.K}曲をしぼる`
+      : revived ? `${st.P}曲から順位を決める` : `${st.K}曲の順位を決める`;
     $("[data-round]").textContent = engine.comparisons + 1;
     // 「TOP10確定 n/10」は、選んだ瞬間にTOP入りが分かってしまうので出さない
     const confirmed = $("[data-confirmed]");
@@ -294,7 +309,7 @@
       confirmed.remove();
     }
     $("[data-remaining]").textContent = engine.remainingEstimate();
-    $("[data-candidates]").textContent = ph === 1 ? st.pool.filter((i) => st.state[i] !== -1).length : st.K;
+    $("[data-candidates]").textContent = ph === 1 ? st.pool.filter((i) => st.state[i] !== -1).length : revived ? st.P : st.K;
     $('[data-action="remove-both"]').hidden = ph !== 1;
     // 「後に回す」は第1ステージだけ。ほかに出せる組み合わせがないときは押せない見た目にする
     const deferBtn = $('[data-action="defer"]');
@@ -339,7 +354,7 @@
   function stageProgress() {
     const start = engine.phase === 1 ? 0 : engine.phaseStartComparisons() || 0;
     const done = engine.comparisons - start;
-    const rest = engine.remainingEstimate();
+    const rest = engine.stageRemainingEstimate();
     return done + rest > 0 ? done / (done + rest) : 1;
   }
 
@@ -464,26 +479,37 @@
   function undo() {
     if (!engine || !engine.history.length) return;
     deciding = false;
-    engine.undo();
+    const h = engine.undo();
     save();
+    // 取り消したのが復活なら、幕間（選び直せる画面）に戻る
+    if (h && h.t === "v") {
+      renderInterlude(true);
+      toast("復活を取り消しました");
+      return;
+    }
     renderBattle(true, true);
     releaseFocus();
     toast("ひとつ戻りました");
   }
 
   // ---------- 幕間 ----------
-  function renderInterlude() {
-    const st = engine.status();
+  // keepPeek: 幕間を表示したまま描き直すとき（復活の後など）は「覗いた」状態を保つ
+  function renderInterlude(keepPeek) {
+    const base = engine.reviveBase();
+    const revived = engine.revived;
+    const baseK = base.length;
     const ul = $("[data-lineup]");
     ul.innerHTML = "";
-    // 順位は伏せたまま見せる（曲リスト順）
-    st.top.slice().sort((a, b) => a - b).forEach((i, n) => {
+    // 順位は伏せたまま見せる（曲リスト順）。復活させた曲は後ろに印をつけて並べる
+    const items = base.slice().sort((a, b) => a - b).concat(revived.slice().sort((a, b) => a - b));
+    items.forEach((i, n) => {
       const s = SONGS[i];
+      const isRev = revived.includes(i);
       const li = document.createElement("li");
-      li.className = "lineup__item";
+      li.className = "lineup__item" + (isRev ? " lineup__item--revived" : "");
       setUnitColors(li, s.u);
       li.style.animationDelay = `${n * 60}ms`;
-      li.innerHTML = `<span class="lineup__art"><img src="${imgUrl(s, 300)}" alt="" width="300" height="300"><span class="lineup__back" aria-hidden="true">?</span></span><span class="lineup__title"><span class="lineup__name">${esc(s.t)}</span></span>`;
+      li.innerHTML = `<span class="lineup__art"><img src="${imgUrl(s, 300)}" alt="" width="300" height="300"><span class="lineup__back" aria-hidden="true">?</span></span><span class="lineup__title">${isRev ? `<span class="lineup__tag">復活</span>` : ""}<span class="lineup__name">${esc(s.t)}</span></span>`;
       ul.appendChild(li);
     });
     // 顔ぶれは最初は伏せておき、「覗く」で見せる
@@ -495,35 +521,132 @@
       ul.after(peek);
       peek = $("[data-peek]");
     }
-    peek.dataset.k = st.K;
-    setLineupHidden(true);
-    $("[data-interlude-title]").textContent = `TOP${st.K}の${st.K}曲が決まりました`;
-    const btn = $('[data-action="to-phase2"]');
-    if (st.phase === 3) {
-      $("[data-interlude-lead]").textContent = "第1ステージの結果だけで、順位まで決まりました。";
-      btn.innerHTML = "結果を見る";
-    } else {
-      const rest = engine.remainingEstimate();
-      $("[data-interlude-lead]").textContent = `第2ステージでは、この${st.K}曲の順位が決まります。`;
-      btn.innerHTML = `第2ステージをはじめる <span class="btn__sub">あと約${rest}回</span>`;
-    }
-    show("screen-interlude");
+    peek.dataset.k = baseK;
+    // 復活させた後は、もう覗いている
+    setLineupHidden(!(keepPeek ? peeked : revived.length > 0));
+    $("[data-interlude-title]").textContent = `TOP${baseK}の${baseK}曲が決まりました`;
+    if ($("#screen-interlude").hidden) show("screen-interlude");
   }
 
   // 一度覗いたら隠し直す必要はないので、ボタンごと消す
   function setLineupHidden(hidden) {
     const ul = $("[data-lineup]");
     const peek = $("[data-peek]");
+    peeked = !hidden;
     ul.classList.toggle("is-hidden", hidden);
     ul.setAttribute("aria-hidden", String(hidden));
     peek.textContent = `TOP${peek.dataset.k}を覗く`;
     peek.parentElement.hidden = !hidden;
     if (!hidden && document.activeElement === peek) $("#interlude-title").focus({ preventScroll: true });
+    syncInterludeActions();
+  }
+
+  // 覗いた後は「この◯曲で」と、進む曲数をボタンに出す
+  function syncInterludeActions() {
+    const st = engine.status();
+    const revived = engine.revived;
+    const count = revived.length ? st.P : st.top.length;
+    const btn = $('[data-action="to-phase2"]');
+    const lead = $("[data-interlude-lead]");
+    if (st.phase === 3) {
+      lead.textContent = "第1ステージの結果だけで、順位まで決まりました。";
+      btn.innerHTML = peeked ? `この${count}曲で結果を見る` : "結果を見る";
+    } else {
+      const rest = engine.remainingEstimate();
+      lead.textContent = revived.length
+        ? `第2ステージでは、復活させた${revived.length}曲を含む${count}曲から、TOP${st.K}の順位が決まります。`
+        : `第2ステージでは、この${st.K}曲の順位が決まります。`;
+      btn.innerHTML = `${peeked ? `この${count}曲で第2ステージへ進む` : "第2ステージをはじめる"} <span class="btn__sub">あと約${rest}回</span>`;
+    }
+    $('[data-action="revive"]').setAttribute("aria-disabled", String(!peeked || !engine.canRevive()));
+  }
+
+  // ---------- 復活 ----------
+  const picked = new Set();
+
+  function openPicker() {
+    const k = engine.reviveBase().length;
+    if (!peeked) return toast(`TOP${k}を覗くと使えます`);
+    if (!engine.canRevive()) return toast("第2ステージをはじめた後は、復活させる曲を変えられません");
+    const cands = engine.reviveCandidates();
+    if (!cands.length) return toast("復活させられる曲がありません");
+    picked.clear();
+    engine.revived.forEach((i) => picked.add(i));
+    const tile = (c) => {
+      const s = SONGS[c.id];
+      return `<div class="tile-wrap"><button type="button" class="tile" data-revive-song="${c.id}" aria-pressed="false">` +
+        `<span class="tile__art"><img src="${imgUrl(s, 300)}" alt="" loading="lazy" width="300" height="300"><span class="tile__mark">復活</span></span>` +
+        `<span class="tile__title">${esc(s.t)}</span>${s.note ? `<span class="tile__note">${esc(s.note)}</span>` : ""}</button>` +
+        `<button type="button" class="tile__listen" data-listen-song="${c.id}" aria-label="${esc(s.t)} を試聴">▶</button></div>`;
+    };
+    const main = cands.filter((c) => !c.removed), removed = cands.filter((c) => c.removed);
+    $("[data-picker-grid]").innerHTML = main.map(tile).join("");
+    $("[data-picker-grid]").hidden = !main.length;
+    $("[data-picker-removed]").innerHTML = removed.map(tile).join("");
+    $("[data-picker-removed]").hidden = !removed.length;
+    $("[data-picker-removed-head]").hidden = !removed.length;
+    $("[data-picker-lead]").textContent =
+      `TOP${k}に入らなかった曲から${MAX_REVIVE}曲まで選べます。あと一歩だった曲が先頭です。復活させた曲は、第2ステージでTOP${k}の曲とあらためて比べます。`;
+    syncPicker();
+    const box = $("[data-picker]");
+    box.hidden = false;
+    $(".picker__body", box).scrollTop = 0;
+    document.body.classList.add("is-locked");
+    $("#picker-title").focus({ preventScroll: true });
+  }
+
+  function syncPicker() {
+    $$("[data-revive-song]").forEach((t) => t.setAttribute("aria-pressed", String(picked.has(+t.dataset.reviveSong))));
+    $("[data-picker-count]").textContent = `${picked.size}/${MAX_REVIVE}`;
+    const had = engine.revived.length > 0;
+    $('[data-action="revive-confirm"]').textContent =
+      picked.size ? `${picked.size}曲を復活させる` : had ? "復活を取り消す" : "復活させない";
+  }
+
+  function togglePick(id) {
+    if (picked.has(id)) picked.delete(id);
+    else if (picked.size >= MAX_REVIVE) return toast(`${MAX_REVIVE}曲まで選べます`);
+    else picked.add(id);
+    syncPicker();
+  }
+
+  function closePicker(silent) {
+    const box = $("[data-picker]");
+    if (!box || box.hidden) return;
+    box.hidden = true;
+    document.body.classList.remove("is-locked");
+    if (!silent) $('[data-action="revive"]').focus({ preventScroll: true });
+  }
+
+  function confirmRevive() {
+    const had = engine.revived.length;
+    // 選んだ順ではなく、候補の並び順（あと一歩の順）で渡す
+    const order = engine.reviveCandidates().map((c) => c.id).filter((i) => picked.has(i));
+    engine.revive(order);
+    save();
+    closePicker(true);
+    renderInterlude(true);
+    $('[data-action="revive"]').focus({ preventScroll: true });
+    const n = engine.revived.length;
+    if (n) toast(`${n}曲を復活させました`);
+    else if (had) toast("復活を取り消しました");
   }
 
   // ---------- 結果 ----------
+  // 手直しできる並び: 自動の順位（復活させた曲があれば、TOP外になった候補も下に続く）
+  function adjustList() {
+    const auto = engine.finalCandidates();
+    const m = manual;
+    if (m && m.len === engine.history.length && m.ids.length === auto.length && auto.every((i) => m.ids.includes(i)))
+      return m.ids.slice();
+    return auto;
+  }
+  function isAdjusted() {
+    return adjustList().join() !== engine.finalCandidates().join();
+  }
+  // シェアなどに使う TOP-K（手直しを反映）
   function rankingSongs() {
-    return engine.ranking().map((i) => SONGS[i]);
+    return adjustList().slice(0, engine.status().K).map((i) => SONGS[i]);
   }
 
   function siteUrl() {
@@ -541,12 +664,30 @@
     $("[data-result-count]").textContent = engine.comparisons;
     $("#result-title").textContent = `あなたのTOP${songs.length}`;
     $("[data-result-date]").textContent = dateLabel();
+    renderRanking(true);
+    renderAdjust();
+    if (isAdjusted()) $("[data-adjust]").open = true;
+    renderMore();
+
+    const canFileShare = !!(navigator.canShare && navigator.share &&
+      navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] }));
+    $('[data-action="share-image"]').textContent = canFileShare ? "画像でシェア" : "画像を保存";
+    $("[data-share-note]").textContent = canFileShare
+      ? "「画像でシェア」からXアプリを選ぶと、画像つきでポストできます。"
+      : "画像を添付したいときは、先に「画像を保存」してからポストに追加してください。";
+    show("screen-result");
+  }
+
+  // セトリと Spotify の曲リスト（手直しを反映）
+  function renderRanking(animate) {
+    const songs = rankingSongs();
     const rows = $("[data-result-rows]");
     rows.innerHTML = "";
     songs.forEach((s, i) => {
       const li = document.createElement("li");
       li.className = `setlist__row setlist__row--${i + 1}`;
-      li.style.animationDelay = `${(songs.length - 1 - i) * 90 + 150}ms`;
+      if (animate) li.style.animationDelay = `${(songs.length - 1 - i) * 90 + 150}ms`;
+      else li.style.animation = "none";
       li.innerHTML = `
         <span class="setlist__num">${i + 1}</span>
         <span class="setlist__song">${esc(s.t)}</span>
@@ -571,14 +712,76 @@
     $("button", pl).textContent = `プレイリスト用に${songs.length}曲をコピー`;
     $(".playlist__note", pl).textContent =
       `Spotify のデスクトップアプリで新しいプレイリストを開き、Ctrl+V（Mac は ⌘V）で貼り付けると、この順番で${songs.length}曲が追加されます。スマホのアプリでは貼り付けできません。`;
+  }
 
-    const canFileShare = !!(navigator.canShare && navigator.share &&
-      navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] }));
-    $('[data-action="share-image"]').textContent = canFileShare ? "画像でシェア" : "画像を保存";
-    $("[data-share-note]").textContent = canFileShare
-      ? "「画像でシェア」からXアプリを選ぶと、画像つきでポストできます。"
-      : "画像を添付したいときは、先に「画像を保存」してからポストに追加してください。";
-    show("screen-result");
+  // 順位の手直し: ↑↓ で隣と入れ替える。区切りより下は TOP 外
+  function renderAdjust() {
+    const ids = adjustList();
+    const k = engine.status().K;
+    const ul = $("[data-adjust-list]");
+    ul.innerHTML = "";
+    ids.forEach((id, i) => {
+      if (i === k) {
+        const d = document.createElement("li");
+        d.className = "adjust__divider";
+        d.textContent = `ここから下はTOP${k}外`;
+        ul.appendChild(d);
+      }
+      const s = SONGS[id];
+      const li = document.createElement("li");
+      li.className = "adjust__row" + (i >= k ? " adjust__row--out" : "");
+      li.dataset.id = id;
+      li.innerHTML = `
+        <span class="adjust__num mono">${i < k ? i + 1 : "–"}</span>
+        <span class="adjust__song"><span class="adjust__title">${esc(s.t)}</span><span class="adjust__unit"><span class="setlist__dot"></span>${esc(s.u)}</span></span>
+        <button type="button" class="adjust__move" data-move="-1" aria-label="${esc(s.t)} を1つ上へ"${i === 0 ? " disabled" : ""}>↑</button>
+        <button type="button" class="adjust__move" data-move="1" aria-label="${esc(s.t)} を1つ下へ"${i === ids.length - 1 ? " disabled" : ""}>↓</button>`;
+      setUnitColors($(".setlist__dot", li), s.u);
+      ul.appendChild(li);
+    });
+    $('[data-action="adjust-reset"]').disabled = !isAdjusted();
+  }
+
+  function moveSong(id, d) {
+    const ids = adjustList();
+    const i = ids.indexOf(id), j = i + d;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    const k = engine.status().K;
+    manual = ids.join() === engine.finalCandidates().join() ? null : { len: engine.history.length, ids };
+    save();
+    renderRanking(false);
+    renderAdjust();
+    // 動かした曲のボタンにフォーカスを戻す（端に着いたら反対側のボタン）
+    const row = $(`.adjust__row[data-id="${id}"]`);
+    const btn = $(`[data-move="${d}"]`, row);
+    (btn.disabled ? $(`[data-move="${-d}"]`, row) : btn).focus();
+    if ((i < k) !== (j < k)) toast(j < k ? `${SONGS[id].t} がTOP${k}に入りました` : `${SONGS[id].t} がTOP${k}から外れました`);
+  }
+
+  function resetAdjust() {
+    manual = null;
+    save();
+    renderRanking(false);
+    renderAdjust();
+    toast("自動の順位に戻しました");
+  }
+
+  // ほかにも好きな曲: TOP に入らなかった曲のうち、あと一歩だった曲
+  function renderMore() {
+    const ids = engine.nearMisses(10);
+    const box = $("[data-more]");
+    box.hidden = !ids.length;
+    $("[data-more-lead]").textContent = `TOP${engine.status().K}にはあと一歩だった曲です。`;
+    $("[data-more-list]").innerHTML = ids.map((i) => {
+      const s = SONGS[i];
+      return `<li class="more__item">
+        <img class="more__art" src="${imgUrl(s, 300)}" alt="" loading="lazy" width="48" height="48">
+        <span class="more__body"><span class="more__name">${esc(s.t)}</span><span class="more__unit"><span class="setlist__dot" data-unit="${esc(s.u)}"></span>${esc(s.u)}${s.note ? ` ・ ${esc(s.note)}` : ""}</span></span>
+        <button type="button" class="more__listen" data-listen-song="${i}" aria-label="${esc(s.t)} を試聴">▶</button>
+      </li>`;
+    }).join("");
+    $$("[data-more-list] .setlist__dot").forEach((d) => setUnitColors(d, d.dataset.unit));
   }
 
   function shareX() {
@@ -680,6 +883,10 @@
     if (listen) return pair && openListen(pair[+listen.dataset.listen]);
     const listenSong = ev.target.closest("[data-listen-song]");
     if (listenSong) return openListen(+listenSong.dataset.listenSong);
+    const rv = ev.target.closest("[data-revive-song]");
+    if (rv) return togglePick(+rv.dataset.reviveSong);
+    const mv = ev.target.closest("[data-move]");
+    if (mv) return moveSong(+mv.closest("[data-id]").dataset.id, +mv.dataset.move);
     const act = ev.target.closest("[data-action]");
     if (!act) return;
     switch (act.dataset.action) {
@@ -699,7 +906,7 @@
       case "resume": {
         const saved = loadSaved();
         if (!saved) return renderStart();
-        engine = new SortEngine(N, saved);
+        loadEngine(saved);
         return proceed(false);
       }
       case "home": closeListen(); return renderStart();
@@ -708,6 +915,10 @@
       case "undo": return undo();
       case "to-phase2": return proceed(false);
       case "peek-top": return setLineupHidden(false);
+      case "revive": return openPicker();
+      case "revive-cancel": return closePicker();
+      case "revive-confirm": return confirmRevive();
+      case "adjust-reset": return resetAdjust();
       case "share-x": return shareX();
       case "share-image": return shareImage();
       case "copy-text": return copyText();
@@ -715,6 +926,7 @@
       case "restart":
         clearSaved();
         engine = null;
+        manual = null;
         clearFilter();
         return replacing(renderStart);
       case "close-sheet": return closeListen();
@@ -722,7 +934,7 @@
   });
 
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape") return closeListen();
+    if (ev.key === "Escape") return $("[data-sheet]").hidden ? closePicker() : closeListen();
     if ($("#screen-battle").hidden || !$("[data-sheet]").hidden) return;
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.key === "ArrowLeft" || ev.key === "1") { ev.preventDefault(); choose(0); }

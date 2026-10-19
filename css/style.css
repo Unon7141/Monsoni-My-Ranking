@@ -691,9 +691,58 @@ img { display: block; max-width: 100%; }
 .lineup.is-hidden .lineup__art { box-shadow: 0 0 0 2px var(--rig); }
 .lineup.is-hidden .lineup__name { display: none; }
 .lineup.is-hidden .lineup__title::before { content: "？？？"; color: var(--dim); }
+.lineup.is-hidden .lineup__tag { display: none; }
 .lineup__peek { display: flex; justify-content: center; margin: -12px 0 28px; }
 .interlude__actions { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .interlude__actions .btn--primary { min-width: min(100%, 320px); }
+
+/* 復活させた曲の印 */
+.lineup__tag {
+  display: inline-block;
+  margin: 0 4px 2px 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--hall);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.6;
+  vertical-align: 1px;
+}
+
+/* 復活させる曲を選ぶシート（タイルは「曲をしぼる」と同じ見た目） */
+body.is-locked { overflow: hidden; }
+.picker { position: fixed; inset: 0; z-index: 25; display: grid; align-items: end; justify-items: center; }
+.picker__backdrop { position: absolute; inset: 0; background: rgba(8, 6, 18, 0.7); }
+.picker__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 720px);
+  max-height: 92vh;
+  max-height: 92dvh;
+  padding: 16px var(--gutter) max(14px, env(safe-area-inset-bottom));
+  border-radius: 18px 18px 0 0;
+  background: var(--hall-2);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+  animation: sheet-in 0.3s var(--ease) both;
+}
+.picker__bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.picker__title { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 20px; }
+.picker__title:focus { outline: none; }
+.picker__count { font-size: 15px; color: var(--text); white-space: nowrap; }
+.picker__lead { margin: 6px 0 12px; font-size: 12px; color: var(--muted); }
+.picker__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 2px 12px; }
+.picker__sub { margin: 22px 0 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.picker__actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; border-top: 1px solid var(--rig); }
+.picker__actions .btn--primary { min-width: 11em; }
+.picker .tile[aria-pressed="false"] .tile__art img { filter: none; }
+.picker .tile[aria-pressed="false"] .tile__mark { opacity: 0; }
+.picker .tile[aria-pressed="false"] .tile__title { color: inherit; text-decoration: none; }
+.picker .tile[aria-pressed="true"] .tile__art { outline: 3px solid var(--text); outline-offset: -3px; }
+.picker .tile[aria-pressed="true"] .tile__art img { filter: brightness(0.55); }
+.picker .tile[aria-pressed="true"] .tile__mark { opacity: 1; z-index: 1; }
+.picker .tile[aria-pressed="true"] .tile__title { color: var(--text); font-weight: 700; }
 
 /* ---------- 結果 ---------- */
 .result { display: grid; gap: 28px; justify-items: center; }
@@ -717,6 +766,70 @@ img { display: block; max-width: 100%; }
 .playlist__note { margin: 0; font-size: 11px; color: var(--dim); }
 
 .result__again { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+/* 順位の手直し */
+.adjust__lead { margin: 0 0 10px; font-size: 12px; color: var(--muted); }
+.adjust__list { list-style: none; margin: 0; padding: 0; }
+.adjust__row {
+  display: grid;
+  grid-template-columns: 2em 1fr 44px 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(58, 49, 100, 0.6);
+}
+.adjust__num { font-size: 14px; text-align: right; color: var(--text); padding-right: 4px; }
+.adjust__song { min-width: 0; display: flex; flex-direction: column; }
+.adjust__title { font-size: 14px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.adjust__unit { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.adjust__row--out .adjust__num, .adjust__row--out .adjust__title { color: var(--muted); }
+.adjust__move {
+  width: 44px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--stage);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.adjust__move:hover { background: var(--rig); }
+.adjust__move:disabled { opacity: 0.3; cursor: default; background: var(--stage); }
+.adjust__divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dim);
+}
+.adjust__divider::before, .adjust__divider::after { content: ""; flex: 1; border-top: 1.5px dashed var(--rig); }
+.adjust__foot { display: flex; justify-content: center; margin: 14px 0 16px; }
+
+/* ほかにも好きな曲 */
+.more { width: min(100%, 520px); }
+.more__title { margin: 0 0 2px; font-family: var(--f-display); font-weight: 400; font-size: 18px; }
+.more__lead { margin: 0 0 10px; font-size: 12px; color: var(--muted); }
+.more__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.more__item { display: grid; grid-template-columns: 44px 1fr 36px; align-items: center; gap: 12px; padding: 6px 0; }
+.more__art { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: var(--stage); }
+.more__body { min-width: 0; display: flex; flex-direction: column; }
+.more__name { font-size: 14px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.more__unit { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.more__listen {
+  width: 36px;
+  height: 36px;
+  padding: 0 0 0 2px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.more__listen:hover { color: var(--text); background: rgba(255, 255, 255, 0.12); }
 
 /* ---------- 試聴シート ---------- */
 .sheet { position: fixed; inset: 0; z-index: 30; display: grid; align-items: end; justify-items: center; }
