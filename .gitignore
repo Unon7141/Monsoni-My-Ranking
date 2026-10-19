@@ -1,0 +1,8 @@
+# 開発用（Claude Code の設定・スキル）。公開サイトには不要
+.claude/
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/

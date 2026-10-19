@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>モンソニ！楽曲ソート</title>
+  <meta name="description" content="モンソニ！の楽曲から2曲ずつ好きなほうを選んで、あなたのTOP10を決める非公式ファンメイドのソートゲーム。">
+  <meta name="theme-color" content="#120E24">
+  <!-- 公開後、og:url と og:image を公開URLの絶対パスに書き換えてください（例: https://example.github.io/monsoni-sort/og.png） -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="モンソニ！楽曲ソート">
+  <meta property="og:description" content="2曲から好きなほうを選ぶだけ。あなたのモンソニ！TOP10セトリをつくろう。">
+  <meta property="og:image" content="og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://i.scdn.co" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;600&family=RocknRoll+One&family=Yusei+Magic&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="hall" aria-hidden="true"></div>
+
+  <main id="app">
+    <!-- ===== スタート ===== -->
+    <section id="screen-start" class="screen screen--start" aria-labelledby="start-title">
+      <div class="start">
+        <div class="start__copy">
+          <p class="eyebrow">非公式ファンメイド ・ 全<span data-total></span>曲</p>
+          <h1 id="start-title" class="start__title" tabindex="-1">モンソニ！<br>楽曲ソート</h1>
+          <p class="start__lead">2曲から好きなほうを選ぶだけ。くり返すうちに、あなたのTOP10が決まります。</p>
+
+          <ol class="program" aria-label="進め方">
+            <li class="program__item">
+              <span class="program__part">第1部</span>
+              <span class="program__body"><b>TOP10の10曲をしぼる</b>勝ち抜き形式。負けが重なった曲から自動で脱落します。</span>
+            </li>
+            <li class="program__item">
+              <span class="program__part">第2部</span>
+              <span class="program__body"><b>10曲の順位を決める</b>第1部の結果を引き継ぐので、残りはわずかです。</span>
+            </li>
+          </ol>
+
+          <div class="start__actions">
+            <button type="button" class="btn btn--primary" data-action="resume" hidden>
+              続きから <span class="btn__sub" data-resume-label></span>
+            </button>
+            <button type="button" class="btn btn--primary" data-action="start-all">
+              全<span data-total></span>曲ではじめる <span class="btn__sub">約<span data-est-all></span>回</span>
+            </button>
+            <button type="button" class="btn btn--ghost" data-action="open-filter">
+              曲をしぼってはじめる <span class="btn__sub">知らない曲を外すと回数が減ります</span>
+            </button>
+          </div>
+        </div>
+
+        <figure class="start__sheet" aria-hidden="true">
+          <div class="setlist setlist--blank">
+            <div class="setlist__head">
+              <span class="setlist__brand">MONSONI!</span>
+              <span class="setlist__label">SET LIST</span>
+            </div>
+            <ol class="setlist__rows" data-blank-rows></ol>
+          </div>
+        </figure>
+      </div>
+      <p class="credit">モンスターストライク「モンソニ！」の非公式ファンメイドです。楽曲情報とジャケット画像は Spotify より。</p>
+    </section>
+
+    <!-- ===== 曲をしぼる ===== -->
+    <section id="screen-filter" class="screen" aria-labelledby="filter-title" hidden>
+      <header class="screen__head">
+        <button type="button" class="link-back" data-action="home">← トップへ</button>
+        <h2 id="filter-title" class="screen__title" tabindex="-1">TOP10に入らない曲を外す</h2>
+        <p class="screen__lead">タップで外す／戻す。外した曲は対戦に出ません。</p>
+        <div class="filter__bulk">
+          <button type="button" class="chip" data-action="filter-all-in">全曲を戻す</button>
+          <button type="button" class="chip" data-action="filter-all-out">全曲を外す</button>
+        </div>
+      </header>
+      <div class="filter" data-filter-groups></div>
+      <div class="dock">
+        <button type="button" class="btn btn--primary dock__btn" data-action="start-filtered">
+          <span data-filter-count></span>曲ではじめる <span class="btn__sub">約<span data-filter-est></span>回</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== 対戦 ===== -->
+    <section id="screen-battle" class="screen screen--battle" aria-labelledby="battle-title" hidden>
+      <header class="bhead">
+        <div class="bhead__row">
+          <p class="bhead__part" data-phase-part>第1部</p>
+          <h2 id="battle-title" class="bhead__title" tabindex="-1" data-phase-title>TOP10の10曲をしぼる</h2>
+          <p class="bhead__round"><span class="mono" data-round>1</span>戦目</p>
+        </div>
+        <div class="penlights" data-penlights role="img" aria-label="TOP10 確定数"></div>
+        <p class="bhead__stats">
+          <span data-confirm-label>TOP10確定</span> <span class="mono" data-confirmed>0/10</span>
+          <span class="sep" aria-hidden="true">・</span>
+          残り約<span class="mono" data-remaining>0</span>回
+          <span class="sep" aria-hidden="true">・</span>
+          候補<span class="mono" data-candidates>0</span>曲
+        </p>
+      </header>
+
+      <p class="arena__ask">どっちが好き？</p>
+      <div class="arena" data-arena>
+        <article class="card" data-side="0">
+          <button type="button" class="card__pick" data-pick="0">
+            <span class="card__art"><img alt="" decoding="async" width="640" height="640"></span>
+            <span class="card__title"></span>
+            <span class="card__note"></span>
+            <span class="card__unit"></span>
+          </button>
+          <button type="button" class="card__listen" data-listen="0">▶ 試聴</button>
+        </article>
+        <div class="arena__vs" aria-hidden="true">VS</div>
+        <article class="card" data-side="1">
+          <button type="button" class="card__pick" data-pick="1">
+            <span class="card__art"><img alt="" decoding="async" width="640" height="640"></span>
+            <span class="card__title"></span>
+            <span class="card__note"></span>
+            <span class="card__unit"></span>
+          </button>
+          <button type="button" class="card__listen" data-listen="1">▶ 試聴</button>
+        </article>
+      </div>
+
+      <div class="bactions">
+        <button type="button" class="btn btn--ghost btn--small" data-action="remove-both">どちらもTOP10外</button>
+        <button type="button" class="btn btn--ghost btn--small" data-action="undo">ひとつ戻る</button>
+      </div>
+      <p class="bhint" data-remove-hint>「どちらもTOP10外」は、この2曲と、これまでにこの2曲に負けた曲をまとめて外します。</p>
+      <p class="bhint bhint--keys">キーボード: ← → で選ぶ ／ ↓ で両方外す ／ Backspace で戻る</p>
+      <button type="button" class="link-back link-back--foot" data-action="home">中断してトップへ（進行は保存されます）</button>
+    </section>
+
+    <!-- ===== 幕間 ===== -->
+    <section id="screen-interlude" class="screen" aria-labelledby="interlude-title" hidden>
+      <header class="screen__head screen__head--center">
+        <p class="eyebrow">第1部 終了</p>
+        <h2 id="interlude-title" class="screen__title" tabindex="-1" data-interlude-title>TOP10の10曲が決まりました</h2>
+        <p class="screen__lead" data-interlude-lead></p>
+      </header>
+      <ul class="lineup" data-lineup></ul>
+      <div class="interlude__actions">
+        <button type="button" class="btn btn--primary" data-action="to-phase2"></button>
+        <button type="button" class="btn btn--ghost btn--small" data-action="undo">ひとつ戻る</button>
+      </div>
+    </section>
+
+    <!-- ===== 結果 ===== -->
+    <section id="screen-result" class="screen screen--result" aria-labelledby="result-title" hidden>
+      <header class="screen__head screen__head--center">
+        <p class="eyebrow">終演</p>
+        <h2 id="result-title" class="screen__title" tabindex="-1">あなたのTOP10</h2>
+        <p class="screen__lead"><span class="mono" data-result-count></span>回の選択で決まりました。</p>
+      </header>
+
+      <div class="result">
+        <div class="setlist setlist--result" data-result-sheet>
+          <div class="setlist__head">
+            <span class="setlist__brand">MONSONI!</span>
+            <span class="setlist__label">SET LIST <span data-result-date></span></span>
+          </div>
+          <ol class="setlist__rows" data-result-rows></ol>
+        </div>
+
+        <div class="share">
+          <button type="button" class="btn btn--x" data-action="share-x">
+            <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.75 3h3.07l-6.7 7.66L22 21h-6.17l-4.83-6.32L5.47 21H2.4l7.17-8.2L2 3h6.33l4.37 5.77L17.75 3Zm-1.08 16.17h1.7L7.4 4.74H5.58l11.09 14.43Z"/></svg>
+            Xでポスト
+          </button>
+          <button type="button" class="btn btn--ghost" data-action="share-image">画像を保存</button>
+          <button type="button" class="btn btn--ghost" data-action="copy-text">テキストをコピー</button>
+        </div>
+        <p class="share__note" data-share-note>画像を添付したいときは、先に「画像を保存」してからポストに追加してください。</p>
+
+        <details class="listen">
+          <summary>この10曲を Spotify で聴く</summary>
+          <ol class="listen__list" data-listen-list></ol>
+        </details>
+
+        <div class="result__again">
+          <button type="button" class="btn btn--ghost btn--small" data-action="undo">ひとつ戻る</button>
+          <button type="button" class="btn btn--ghost btn--small" data-action="restart">もう一度あそぶ</button>
+        </div>
+      </div>
+      <p class="credit">モンスターストライク「モンソニ！」の非公式ファンメイドです。楽曲情報とジャケット画像は Spotify より。</p>
+    </section>
+  </main>
+
+  <!-- 試聴シート -->
+  <div class="sheet" data-sheet hidden>
+    <div class="sheet__backdrop" data-action="close-sheet"></div>
+    <div class="sheet__panel" role="dialog" aria-modal="true" aria-label="試聴">
+      <div class="sheet__bar">
+        <span class="sheet__title" data-sheet-title></span>
+        <button type="button" class="sheet__close" data-action="close-sheet" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet__frame" data-sheet-frame></div>
+    </div>
+  </div>
+
+  <div class="toast" data-toast role="status" aria-live="polite"></div>
+
+  <script src="js/songs.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
