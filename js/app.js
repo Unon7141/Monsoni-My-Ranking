@@ -8,7 +8,7 @@
 
   // ユニットの色（公式バナーから。2色のユニットは配列）
   const UNIT_COLORS = {
-    "Haitoku Pistols": "#6b6b70",
+    "背徳ピストルズ": "#6b6b70",
     "Two for all": ["#ff1b99", "#71bfff"],
     "デビルズ・パンク・インフェルノ": "#a3302a",
     "Angely Diva": "#fae18e",
@@ -226,7 +226,13 @@
           b.innerHTML = `
             <span class="tile__art"><img src="${imgUrl(s, 300)}" alt="" loading="lazy" width="300" height="300"><span class="tile__mark">外す</span></span>
             <span class="tile__title">${esc(s.t)}</span>${s.note ? `<span class="tile__note">${esc(s.note)}</span>` : ""}`;
-          grid.appendChild(b);
+          // タイル全体はワンタップで外す／戻す。試聴はジャケット右上の小さなボタンだけ
+          const wrap = document.createElement("div");
+          wrap.className = "tile-wrap";
+          wrap.appendChild(b);
+          wrap.insertAdjacentHTML("beforeend",
+            `<button type="button" class="tile__listen" data-listen-song="${i}" aria-label="${esc(s.t)} を試聴">▶</button>`);
+          grid.appendChild(wrap);
         });
         $("[data-unit-toggle]", g).addEventListener("click", () => {
           const allOut = ids.every((i) => filterOut.has(i));
@@ -236,6 +242,7 @@
         root.appendChild(g);
       }
       root.addEventListener("click", (ev) => {
+        if (ev.target.closest("[data-listen-song]")) return;
         const t = ev.target.closest(".tile");
         if (!t) return;
         const i = +t.dataset.song;
@@ -278,8 +285,14 @@
     $("[data-phase-part]").textContent = ph === 1 ? "第1ステージ" : "第2ステージ";
     $("[data-phase-title]").textContent = ph === 1 ? `TOP${st.K}の${st.K}曲をしぼる` : `${st.K}曲の順位を決める`;
     $("[data-round]").textContent = engine.comparisons + 1;
-    $("[data-confirm-label]").textContent = `TOP${st.K}確定`;
-    $("[data-confirmed]").textContent = `${ph === 1 ? st.inC : st.K}/${st.K}`;
+    // 「TOP10確定 n/10」は、選んだ瞬間にTOP入りが分かってしまうので出さない
+    const confirmed = $("[data-confirmed]");
+    if (confirmed) {
+      const sep = confirmed.nextElementSibling;
+      if (sep && sep.classList.contains("sep")) sep.remove();
+      $("[data-confirm-label]")?.remove();
+      confirmed.remove();
+    }
     $("[data-remaining]").textContent = engine.remainingEstimate();
     $("[data-candidates]").textContent = ph === 1 ? st.pool.filter((i) => st.state[i] !== -1).length : st.K;
     $('[data-action="remove-both"]').hidden = ph !== 1;
@@ -398,17 +411,24 @@
     const cards = $$(".card", arena);
     cards[side].classList.add("is-chosen");
     cards[1 - side].classList.add("is-lost");
-    // クリックしたカードにフォーカスが残ると、次にキーを押したとき枠が出続けるので見出しへ移す
-    if (arena.contains(document.activeElement)) $("#battle-title").focus({ preventScroll: true });
+    releaseFocus();
     const phaseBefore = engine.phase;
     engine.choose(w, l);
     save();
     setTimeout(() => { if (!$("#screen-battle").hidden) proceed(phaseBefore === 1); }, stageDelay(phaseBefore, 280));
   }
 
+  // 押したボタン（カード・候補外・ひとつ戻る）にフォーカスが残ると、
+  // 次にキーを押したとき黄色い枠が出続けるので見出しへ移す
+  function releaseFocus() {
+    const a = document.activeElement;
+    if (a && a !== document.body && $("#screen-battle").contains(a)) $("#battle-title").focus({ preventScroll: true });
+  }
+
   function removeBoth() {
     if (deciding || !pair || engine.phase !== 1) return;
     deciding = true;
+    releaseFocus();
     const before = engine.status().P;
     const arena = $("[data-arena]");
     arena.classList.add("is-deciding");
@@ -427,6 +447,7 @@
     engine.undo();
     save();
     renderBattle(true, true);
+    releaseFocus();
     toast("ひとつ戻りました");
   }
 
@@ -442,9 +463,20 @@
       li.className = "lineup__item";
       setUnitColors(li, s.u);
       li.style.animationDelay = `${n * 60}ms`;
-      li.innerHTML = `<span class="lineup__art"><img src="${imgUrl(s, 300)}" alt="" width="300" height="300"></span><span class="lineup__title">${esc(s.t)}</span>`;
+      li.innerHTML = `<span class="lineup__art"><img src="${imgUrl(s, 300)}" alt="" width="300" height="300"><span class="lineup__back" aria-hidden="true">?</span></span><span class="lineup__title"><span class="lineup__name">${esc(s.t)}</span></span>`;
       ul.appendChild(li);
     });
+    // 顔ぶれは最初は伏せておき、「覗く」で見せる
+    let peek = $("[data-peek]");
+    if (!peek) {
+      peek = document.createElement("div");
+      peek.className = "lineup__peek";
+      peek.innerHTML = `<button type="button" class="btn btn--ghost btn--small" data-action="peek-top" data-peek></button>`;
+      ul.after(peek);
+      peek = $("[data-peek]");
+    }
+    peek.dataset.k = st.K;
+    setLineupHidden(true);
     $("[data-interlude-title]").textContent = `TOP${st.K}の${st.K}曲が決まりました`;
     const btn = $('[data-action="to-phase2"]');
     if (st.phase === 3) {
@@ -456,6 +488,17 @@
       btn.innerHTML = `第2ステージをはじめる <span class="btn__sub">あと約${rest}回</span>`;
     }
     show("screen-interlude");
+  }
+
+  // 一度覗いたら隠し直す必要はないので、ボタンごと消す
+  function setLineupHidden(hidden) {
+    const ul = $("[data-lineup]");
+    const peek = $("[data-peek]");
+    ul.classList.toggle("is-hidden", hidden);
+    ul.setAttribute("aria-hidden", String(hidden));
+    peek.textContent = `TOP${peek.dataset.k}を覗く`;
+    peek.parentElement.hidden = !hidden;
+    if (!hidden && document.activeElement === peek) $("#interlude-title").focus({ preventScroll: true });
   }
 
   // ---------- 結果 ----------
@@ -584,13 +627,13 @@
   }
 
   // ---------- 試聴 ----------
-  function openListen(side) {
-    if (!pair) return;
-    const s = SONGS[pair[side]];
+  function openListen(songIndex) {
+    const s = SONGS[songIndex];
+    if (!s) return;
     $("[data-sheet-title]").textContent = `${s.t} ／ ${s.u}`;
     $("[data-sheet-frame]").innerHTML =
       `<iframe title="Spotify: ${esc(s.t)}" src="https://open.spotify.com/embed/track/${s.id}?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>` +
-      `<p class="sheet__note">※ Spotify の試聴で流れる部分は Spotify 側で決まるため、サビなどの聴きどころが流れるとは限りません。</p>`;
+      `<p class="sheet__note">※ 試聴部分は Spotify 側で決まるため、サビなどの聴きどころが流れるとは限りません。</p>`;
     $("[data-sheet]").hidden = false;
     $(".sheet__close").focus();
   }
@@ -614,7 +657,9 @@
     const pick = ev.target.closest("[data-pick]");
     if (pick) return choose(+pick.dataset.pick);
     const listen = ev.target.closest("[data-listen]");
-    if (listen) return openListen(+listen.dataset.listen);
+    if (listen) return pair && openListen(pair[+listen.dataset.listen]);
+    const listenSong = ev.target.closest("[data-listen-song]");
+    if (listenSong) return openListen(+listenSong.dataset.listenSong);
     const act = ev.target.closest("[data-action]");
     if (!act) return;
     switch (act.dataset.action) {
@@ -641,6 +686,7 @@
       case "remove-both": return removeBoth();
       case "undo": return undo();
       case "to-phase2": return proceed(false);
+      case "peek-top": return setLineupHidden(false);
       case "share-x": return shareX();
       case "share-image": return shareImage();
       case "copy-text": return copyText();

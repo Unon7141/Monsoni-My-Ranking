@@ -327,6 +327,7 @@ img { display: block; max-width: 100%; }
 
 .tile {
   position: relative;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -337,6 +338,29 @@ img { display: block; max-width: 100%; }
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+.tile-wrap { position: relative; }
+/* ジャケット右上の試聴ボタン（タイル本体のタップとは別） */
+.tile__listen {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0 0 0 2px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(18, 14, 36, 0.78);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tile__listen:hover { background: var(--hall); box-shadow: 0 0 0 1.5px var(--text); }
+
 .tile__art {
   position: relative;
   aspect-ratio: 1;
@@ -612,13 +636,37 @@ img { display: block; max-width: 100%; }
   margin: 8px 0 28px;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr)); /* 10曲を5曲ずつ2段に */
   gap: 14px 12px;
 }
+@media (max-width: 520px) {
+  .lineup { gap: 12px 8px; }
+  .lineup .lineup__title { font-size: 11px; }
+}
 .lineup__item { display: flex; flex-direction: column; gap: 6px; animation: card-in 0.4s var(--ease) both; }
-.lineup__art { aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--stage); box-shadow: 0 0 0 2px var(--c), 0 10px 30px -14px var(--c); }
+.lineup__art { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--stage); box-shadow: 0 0 0 2px var(--c), 0 10px 30px -14px var(--c); transition: box-shadow 0.3s; }
 .lineup__art img { width: 100%; height: 100%; object-fit: cover; }
 .lineup__title { font-size: 12px; font-weight: 700; line-height: 1.35; }
+
+/* 伏せた状態: ジャケット・曲名・ユニット色を見せない */
+.lineup__back {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: repeating-linear-gradient(45deg, var(--stage) 0 8px, var(--hall-2) 8px 16px);
+  font-family: var(--f-display);
+  font-size: 30px;
+  color: var(--dim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s var(--ease);
+}
+.lineup.is-hidden .lineup__back { opacity: 1; }
+.lineup.is-hidden .lineup__art { box-shadow: 0 0 0 2px var(--rig); }
+.lineup.is-hidden .lineup__name { display: none; }
+.lineup.is-hidden .lineup__title::before { content: "？？？"; color: var(--dim); }
+.lineup__peek { display: flex; justify-content: center; margin: -12px 0 28px; }
 .interlude__actions { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .interlude__actions .btn--primary { min-width: min(100%, 320px); }
 
