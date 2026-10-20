@@ -747,7 +747,6 @@
     const i = ids.indexOf(id), j = i + d;
     if (i < 0 || j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
-    const k = engine.status().K;
     manual = ids.join() === engine.finalCandidates().join() ? null : { len: engine.history.length, ids };
     save();
     renderRanking(false);
@@ -756,7 +755,6 @@
     const row = $(`.adjust__row[data-id="${id}"]`);
     const btn = $(`[data-move="${d}"]`, row);
     (btn.disabled ? $(`[data-move="${-d}"]`, row) : btn).focus();
-    if ((i < k) !== (j < k)) toast(j < k ? `${SONGS[id].t} がTOP${k}に入りました` : `${SONGS[id].t} がTOP${k}から外れました`);
   }
 
   function resetAdjust() {
