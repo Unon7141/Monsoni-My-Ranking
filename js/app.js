@@ -354,8 +354,9 @@
   function stageProgress() {
     const start = engine.phase === 1 ? 0 : engine.phaseStartComparisons() || 0;
     const done = engine.comparisons - start;
-    const rest = engine.stageRemainingEstimate();
-    return done + rest > 0 ? done / (done + rest) : 1;
+    // 分母はステージ開始時点の残り回数の目安で固定（途中の見積もり変化で戻ったり伸び悩んだりしない）
+    const budget = engine.stageBudget();
+    return budget > 0 ? Math.min(1, done / budget) : 1;
   }
 
   // ペンライト列: 進み具合 10% ごとに1本灯る。色は左から虹色

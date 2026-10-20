@@ -630,6 +630,22 @@
       return Math.max(1, stage1 - relevant);
     }
 
+    // ステージ開始時点での残り回数の目安（ペンライトの分母）。
+    // 開始時点 = そのステージで最初の比較をする直前（復活や後に回すはその前に含める）
+    stageBudget() {
+      const ph = this.phase;
+      if (ph === 3) return 0;
+      const L = this.history.length;
+      let cut = ph === 1 ? 0 : Math.max(0, this._phase2At());
+      while (cut < L && this.history[cut].t !== "c") cut++;
+      const key = `${ph}:${cut}`;
+      if (this._budget && this._budget.key === key) return this._budget.value;
+      const e = new SortEngine(this.n, { K: this.K, seed: this.seed, excluded: this.excluded, history: this.history.slice(0, cut) });
+      const value = Math.max(1, e.stageRemainingEstimate());
+      this._budget = { key, value };
+      return value;
+    }
+
     serialize() {
       return { seed: this.seed, K: this.K, excluded: this.excluded, history: this.history };
     }
