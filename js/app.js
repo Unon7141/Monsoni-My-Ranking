@@ -656,7 +656,7 @@
 
   // シェアするURL。X はカードをURLごとにキャッシュするので、og.png を差し替えたら
   // index.html の og.png?v= と一緒にこの番号も上げる（新しいURLとして読み直させる）
-  const CARD_VERSION = 2;
+  const CARD_VERSION = 3;
   function shareUrl() {
     const url = siteUrl();
     return url ? `${url}?c=${CARD_VERSION}` : "";
