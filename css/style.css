@@ -903,16 +903,17 @@ body.is-locked { overflow: hidden; }
   clip-path: polygon(77% 0, 84% 0, 90% 100%, 12% 100%);
 }
 
+/* 「1」はジャケット左上の角に重ねる（2位・3位の番号と同じ置き方） */
 .hero__num {
   position: absolute;
   z-index: 2;
-  top: -0.2em;
-  left: calc(100% - 0.24em);
+  top: -0.3em;
+  left: -0.14em;
   font-family: var(--f-hand);
-  font-size: clamp(118px, 32vw, 220px);
+  font-size: clamp(76px, 21vw, 112px);
   line-height: 1;
   color: #fff;
-  -webkit-text-stroke: 0.075em var(--hall);
+  -webkit-text-stroke: 0.06em var(--hall);
   paint-order: stroke fill;
   text-shadow: 0 0 0.12em color-mix(in srgb, var(--c) 90%, transparent), 0 0 0.32em color-mix(in srgb, var(--c2, var(--c)) 60%, transparent);
   pointer-events: none;
@@ -1062,7 +1063,7 @@ body.is-locked { overflow: hidden; }
   .finale { margin: 0 calc(50% - 50vw + 10px); padding: 0 calc(50vw - 50% - 10px); }
   .hero {
     grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
-    column-gap: clamp(76px, 10vw, 104px);
+    column-gap: clamp(32px, 4.5vw, 52px);
     align-items: end;
   }
   .hero__stage { width: 100%; }
