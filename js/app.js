@@ -697,7 +697,7 @@
     const unit = (s, i, cls) =>
       `<span class="${cls}"><span class="setlist__dot" aria-hidden="true"></span>${esc(s.u)}${rev.has(ids[i]) ? ` <span class="ftag">復活</span>` : ""}</span>`;
     const lights = songs.map((s, i) =>
-      `<span class="rlight" style="${colorVars(s.u)}--i:${i};--tilt:${TILT[i % TILT.length]}deg"><span class="penlight"></span><span class="rlight__num">${i + 1}</span></span>`).join("");
+      `<span class="rlight" style="${colorVars(s.u)}--i:${i};--tilt:${TILT[i % TILT.length]}deg"><span class="penlight"></span></span>`).join("");
 
     const html = songs.map((s, i) => {
       const style = `${colorVars(s.u)}--i:${i};`;

@@ -945,7 +945,7 @@ body.is-locked { overflow: hidden; }
   max-width: calc(var(--count, 10) * 76px);
   margin: 40px auto 0;
 }
-.rlight { display: grid; justify-items: center; gap: 10px; }
+.rlight { display: grid; justify-items: center; }
 .rlight .penlight {
   width: clamp(10px, 2.8vw, 16px);
   height: clamp(56px, 15vw, 84px);
@@ -962,7 +962,6 @@ body.is-locked { overflow: hidden; }
     4px -12px 24px -6px var(--c2, var(--c)),
     0 -6px 40px -6px color-mix(in srgb, var(--c) 70%, transparent);
 }
-.rlight__num { font-family: var(--f-mono); font-size: 11px; line-height: 1; color: var(--muted); }
 
 /* ---- セトリの紙: 2位・3位 ---- */
 .fin-paper { position: relative; color: var(--ink); }
