@@ -750,24 +750,6 @@
       void fin.offsetWidth;
       fin.classList.add("is-entering");
     }
-
-    const list = $("[data-listen-list]");
-    list.innerHTML = songs
-      .map((s) => `<li><a href="https://open.spotify.com/track/${s.id}" target="_blank" rel="noopener">${esc(s.t)}</a></li>`)
-      .join("");
-    const details = $("[data-listen-list]").closest("details");
-    $("summary", details).textContent = `この${songs.length}曲を Spotify で聴く`;
-    // プレイリストづくり（Spotify デスクトップアプリに曲リンクを貼り付ける）
-    let pl = $(".playlist", details);
-    if (!pl) {
-      pl = document.createElement("div");
-      pl.className = "playlist";
-      pl.innerHTML = `<button type="button" class="btn btn--ghost btn--small" data-action="copy-playlist"></button><p class="playlist__note"></p>`;
-      details.appendChild(pl);
-    }
-    $("button", pl).textContent = `プレイリスト用に${songs.length}曲をコピー`;
-    $(".playlist__note", pl).textContent =
-      `Spotify のデスクトップアプリで新しいプレイリストを開き、Ctrl+V（Mac は ⌘V）で貼り付けると、この順番で${songs.length}曲が追加されます。スマホのアプリでは貼り付けできません。`;
   }
 
   // 順位の手直し: ↑↓ で隣と入れ替える。区切りより下は TOP 外
@@ -898,11 +880,6 @@
     return copyToClipboard(Share.plainText(rankingSongs(), siteUrl()), "テキストをコピーしました");
   }
 
-  function copyPlaylist() {
-    const links = rankingSongs().map((s) => `https://open.spotify.com/track/${s.id}`).join("\n");
-    return copyToClipboard(links, "曲のリンクをコピーしました。Spotify のプレイリストに貼り付けてください");
-  }
-
   // ---------- 試聴 ----------
   function openListen(songIndex) {
     const s = SONGS[songIndex];
@@ -976,7 +953,6 @@
       case "share-x": return shareX();
       case "share-image": return shareImage();
       case "copy-text": return copyText();
-      case "copy-playlist": return copyPlaylist();
       case "restart":
         clearSaved();
         engine = null;

@@ -1099,13 +1099,7 @@ body.is-locked { overflow: hidden; }
 .listen { width: min(100%, 520px); border-top: 1px solid var(--rig); border-bottom: 1px solid var(--rig); }
 .listen summary { padding: 14px 4px; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--muted); }
 .listen summary:hover { color: var(--text); }
-.listen__list { margin: 0 0 14px; padding-left: 2.2em; font-size: 14px; }
-.listen__list li { padding: 3px 0; }
-.listen__list a { color: var(--text); text-decoration-color: var(--rig); text-underline-offset: 3px; }
-.listen__list a:hover { text-decoration-color: currentColor; }
 
-.playlist { display: grid; justify-items: start; gap: 8px; margin: 0 0 16px; }
-.playlist__note { margin: 0; font-size: 11px; color: var(--dim); }
 
 .result__again { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 
