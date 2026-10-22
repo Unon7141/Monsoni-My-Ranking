@@ -193,10 +193,10 @@
       resume.hidden = false;
       $("[data-resume-label]").textContent =
         e.phase === 3 ? "結果を見る" : `${e.phase === 1 ? "第1ステージ" : "第2ステージ"}・${e.comparisons + 1}戦目から`;
-      $('[data-action="start-all"]').classList.replace("btn--primary", "btn--ghost");
+      $('[data-action="open-filter"]').classList.replace("btn--primary", "btn--ghost");
     } else {
       resume.hidden = true;
-      $('[data-action="start-all"]').classList.replace("btn--ghost", "btn--primary");
+      $('[data-action="open-filter"]').classList.replace("btn--ghost", "btn--primary");
     }
     show("screen-start");
   }
