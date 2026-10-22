@@ -6,9 +6,10 @@
   <title>モンソニ！楽曲マイランキング</title>
   <meta name="description" content="モンソニ！の楽曲から2曲ずつ好きなほうを選んで、あなたのTOP10を決める非公式ファンメイドのソートゲーム。">
   <meta name="theme-color" content="#120E24">
-  <!-- SNS のカード表示用。og:url と og:image は公開URLの絶対パスにする（X は相対パスの画像を表示しない）。og.png を差し替えたら ?v= を上げる（X は画像をURLごとにキャッシュする） -->
+  <!-- SNS のカード表示用。og:image は公開URLの絶対パスにする（X は相対パスの画像を表示しない）。
+       og.png を差し替えたら ?v= を上げ、js/app.js の CARD_VERSION も同じ番号にする（X はカードと画像をURLごとにキャッシュする）。
+       og:url は置かない（シェア用URLの ?c= 付きを別のページとして読み直してもらうため） -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://unon7141.github.io/Monsoni-My-Ranking/">
   <meta property="og:title" content="モンソニ！楽曲マイランキング">
   <meta property="og:description" content="あなただけのモンソニ！TOP10セトリをつくろう。">
   <meta property="og:image" content="https://unon7141.github.io/Monsoni-My-Ranking/og.png?v=2">
@@ -246,6 +247,6 @@
   <script src="js/songs.js?v=1"></script>
   <script src="js/engine.js?v=1"></script>
   <script src="js/share.js?v=2"></script>
-  <script src="js/app.js?v=6"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
 </html>

@@ -654,6 +654,14 @@
     return location.origin + location.pathname.replace(/index\.html$/, "");
   }
 
+  // シェアするURL。X はカードをURLごとにキャッシュするので、og.png を差し替えたら
+  // index.html の og.png?v= と一緒にこの番号も上げる（新しいURLとして読み直させる）
+  const CARD_VERSION = 2;
+  function shareUrl() {
+    const url = siteUrl();
+    return url ? `${url}?c=${CARD_VERSION}` : "";
+  }
+
   function dateLabel() {
     const d = new Date();
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
@@ -821,7 +829,7 @@
   }
 
   function shareX() {
-    const url = siteUrl();
+    const url = shareUrl();
     const text = Share.buildText(rankingSongs(), url);
     window.open(Share.intentUrl(text, url), "_blank", "noopener");
   }
@@ -842,7 +850,7 @@
       const file = new File([blob], "monsoni-top10.png", { type: "image/png" });
       if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], text: Share.buildText(songs, url) });
+          await navigator.share({ files: [file], text: Share.buildText(songs, shareUrl()) });
         } catch (e) { /* キャンセル */ }
       } else {
         const a = document.createElement("a");
@@ -877,7 +885,7 @@
   }
 
   function copyText() {
-    return copyToClipboard(Share.plainText(rankingSongs(), siteUrl()), "テキストをコピーしました");
+    return copyToClipboard(Share.plainText(rankingSongs(), shareUrl()), "テキストをコピーしました");
   }
 
   // ---------- 試聴 ----------
