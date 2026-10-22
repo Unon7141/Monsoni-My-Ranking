@@ -679,23 +679,78 @@
     show("screen-result");
   }
 
-  // セトリと Spotify の曲リスト（手直しを反映）
+  // 結果の順位表（シェア画像と同じ割り付け）と Spotify の曲リスト（手直しを反映）
+  const TILT = [-6, 4, -2, 7, -4, 3, -7, 5, -3, 6]; // ペンライトの傾き（客席で振っている感じに）
+  function colorVars(u) {
+    const [c, c2] = unitColors(u);
+    return `--c:${c};` + (c2 ? `--c2:${c2};` : "");
+  }
+  function artHtml(s, size, cls) {
+    return `<span class="fart ${cls}"><img src="${imgUrl(s, size)}" alt="" width="${size}" height="${size}" decoding="async"${size < 600 ? ' loading="lazy"' : ""}></span>`;
+  }
+
   function renderRanking(animate) {
-    const songs = rankingSongs();
-    const rows = $("[data-result-rows]");
-    rows.innerHTML = "";
-    songs.forEach((s, i) => {
-      const li = document.createElement("li");
-      li.className = `setlist__row setlist__row--${i + 1}`;
-      if (animate) li.style.animationDelay = `${(songs.length - 1 - i) * 90 + 150}ms`;
-      else li.style.animation = "none";
-      li.innerHTML = `
-        <span class="setlist__num">${i + 1}</span>
-        <span class="setlist__song">${esc(s.t)}</span>
-        <span class="setlist__meta"><span class="setlist__dot"></span>${esc(s.u)}${s.note ? ` ・ ${esc(s.note)}` : ""}</span>`;
-      setUnitColors($(".setlist__dot", li), s.u);
-      rows.appendChild(li);
-    });
+    const ids = adjustList().slice(0, engine.status().K);
+    const songs = ids.map((i) => SONGS[i]);
+    const n = songs.length;
+    const rev = new Set(engine.revived);
+    const unit = (s, i, cls) =>
+      `<span class="${cls}"><span class="setlist__dot" aria-hidden="true"></span>${esc(s.u)}${rev.has(ids[i]) ? ` <span class="ftag">復活</span>` : ""}</span>`;
+    const lights = songs.map((s, i) =>
+      `<span class="rlight" style="${colorVars(s.u)}--i:${i};--tilt:${TILT[i % TILT.length]}deg"><span class="penlight"></span><span class="rlight__num">${i + 1}</span></span>`).join("");
+
+    const html = songs.map((s, i) => {
+      const style = `${colorVars(s.u)}--i:${i};`;
+      const rank = `<span class="vh">${i + 1}位 </span>`;
+      if (i === 0) {
+        // 曲名の長さで文字の大きさを3段階に（英数字は半分強の幅で数える）
+        const len = Array.from(s.t).reduce((w, ch) => w + (ch.codePointAt(0) < 0x2000 ? 0.6 : 1), 0);
+        return `<li class="fin-hero${unitColors(s.u)[1] ? " fin-hero--duo" : ""}" style="${style}">
+          <div class="hero">
+            <div class="hero__stage">
+              <span class="hero__beams" aria-hidden="true"><span class="hero__beam"></span><span class="hero__beam hero__beam--2"></span></span>
+              ${artHtml(s, 640, "hero__art")}
+              <span class="hero__num" aria-hidden="true">1</span>
+            </div>
+            <div class="hero__body">
+              ${rank}<span class="hero__title${len > 18 ? " is-long" : len > 9 ? " is-mid" : ""}">${esc(s.t)}</span>
+              ${unit(s, i, "hero__unit")}
+              ${s.note ? `<span class="hero__note">${esc(s.note)}</span>` : ""}
+            </div>
+          </div>
+          <div class="rlights" aria-hidden="true" style="--count:${n}">${lights}</div>
+        </li>`;
+      }
+      if (i < 3) {
+        // 2曲だけのときは2位が紙の幅いっぱい。右のテープは2位・3位の最後の曲に貼る
+        const col = i === 2 ? "3" : n === 2 ? "2 / 4" : "2";
+        const end = i === Math.min(n, 3) - 1;
+        return `<li class="fin-paper fpod fpod--${i + 1}${end ? " fpod--end" : ""}" style="${style}grid-row:2;grid-column:${col}">
+          ${rank}<span class="fpod__stage">${artHtml(s, 300, "fpod__art")}<span class="fpod__num" aria-hidden="true">${i + 1}</span></span>
+          <span class="fpod__body"><span class="fpod__title">${esc(s.t)}</span>${unit(s, i, "fpod__unit")}${s.note ? `<span class="fpod__note">${esc(s.note)}</span>` : ""}</span>
+        </li>`;
+      }
+      const note = s.note ? s.note.replace(/ short ver\.$/, "") : "";
+      return `<li class="fin-paper frow" style="${style}grid-row:${i}">
+        ${rank}<span class="frow__num" aria-hidden="true">${i + 1}</span>${artHtml(s, 300, "frow__art")}
+        <span class="frow__title">${esc(s.t)}${note ? `<span class="frow__note">${esc(note)}</span>` : ""}</span>
+        ${unit(s, i, "frow__unit")}
+      </li>`;
+    }).join("");
+
+    const fin = $("[data-finale]");
+    const ol = $("[data-result-list]");
+    ol.innerHTML = html;
+    ol.style.setProperty("--paper-rows", Math.max(1, n - 2));
+    fin.classList.toggle("is-solo", n < 2);
+    $$("img", ol).forEach((im) => im.addEventListener("error", () => im.parentElement.classList.add("is-missing")));
+    // 演出は結果を開いたときだけ（手直しでは出さない）
+    fin.classList.remove("is-entering");
+    if (animate && !reduceMotion()) {
+      void fin.offsetWidth;
+      fin.classList.add("is-entering");
+    }
+
     const list = $("[data-listen-list]");
     list.innerHTML = songs
       .map((s) => `<li><a href="https://open.spotify.com/track/${s.id}" target="_blank" rel="noopener">${esc(s.t)}</a></li>`)

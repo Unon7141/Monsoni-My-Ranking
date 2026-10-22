@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://i.scdn.co" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;600&family=RocknRoll+One&family=Yusei+Magic&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">
   <!-- 更新したら ?v= の数字を上げる（ブラウザや GitHub Pages に古いファイルが残るのを防ぐ） -->
-  <link rel="stylesheet" href="css/style.css?v=1">
+  <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
   <div class="hall" aria-hidden="true"></div>
@@ -182,19 +182,17 @@
 
     <!-- ===== 結果 ===== -->
     <section id="screen-result" class="screen screen--result" aria-labelledby="result-title" hidden>
-      <header class="screen__head screen__head--center">
+      <header class="screen__head rhead">
         <p class="eyebrow">終演</p>
-        <h2 id="result-title" class="screen__title" tabindex="-1">あなたのTOP10</h2>
+        <h2 id="result-title" class="screen__title rhead__title" tabindex="-1">あなたのTOP10</h2>
+        <p class="rhead__date mono" data-result-date></p>
         <p class="screen__lead"><span class="mono" data-result-count></span>回の選択で決まりました。</p>
       </header>
 
       <div class="result">
-        <div class="setlist setlist--result" data-result-sheet>
-          <div class="setlist__head">
-            <span class="setlist__brand">MONSONI!</span>
-            <span class="setlist__label">SET LIST <span data-result-date></span></span>
-          </div>
-          <ol class="setlist__rows" data-result-rows></ol>
+        <!-- 1位はスポットライトの下に、ペンライト列をはさんで2位以下はセトリの紙に -->
+        <div class="finale" data-finale>
+          <ol class="finale__list" data-result-list aria-labelledby="result-title"></ol>
         </div>
 
         <div class="share">
@@ -253,6 +251,6 @@
   <script src="js/songs.js?v=1"></script>
   <script src="js/engine.js?v=1"></script>
   <script src="js/share.js?v=2"></script>
-  <script src="js/app.js?v=2"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>
