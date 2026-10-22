@@ -35,8 +35,7 @@
   function setUnitColors(el, u) {
     const [c, c2] = unitColors(u);
     el.style.setProperty("--c", c);
-    if (c2) el.style.setProperty("--c2", c2);
-    else el.style.removeProperty("--c2");
+    el.style.setProperty("--c2", c2 || c);
   }
   const imgUrl = (s, size) =>
     window.MONSONI_IMG_BASE + (size >= 600 ? s.img.replace("00001e02", "0000b273") : s.img);
@@ -681,9 +680,10 @@
 
   // 結果の順位表（シェア画像と同じ割り付け）と Spotify の曲リスト（手直しを反映）
   const TILT = [-6, 4, -2, 7, -4, 3, -7, 5, -3, 6]; // ペンライトの傾き（客席で振っている感じに）
+  // 1色のユニットも --c2 を必ず書く（書かないと親要素、たとえば2色ユニットの1位の --c2 を受け継いでしまう）
   function colorVars(u) {
     const [c, c2] = unitColors(u);
-    return `--c:${c};` + (c2 ? `--c2:${c2};` : "");
+    return `--c:${c};--c2:${c2 || c};`;
   }
   function artHtml(s, size, cls) {
     return `<span class="fart ${cls}"><img src="${imgUrl(s, size)}" alt="" width="${size}" height="${size}" decoding="async"${size < 600 ? ' loading="lazy"' : ""}></span>`;
