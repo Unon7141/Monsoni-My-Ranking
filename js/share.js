@@ -20,36 +20,48 @@
   }
 
   function shareTitle(song) {
-    return song.note ? `${song.t}（${song.note.replace(/ short ver\.$/, "")}）` : song.t;
+    const note = song.note ? song.note.replace(/ short ver\.$/, "") : "";
+    // 曲名にすでに版の名前が入っているときは重ねない
+    return note && !song.t.includes(note) ? `${song.t}（${note}）` : song.t;
+  }
+
+  // タイムラインで後半が隠れても伝わるよう、URL とハッシュタグを先頭に置き、順位はその下に並べる
+  //   https://… で
+  //   #モンソニマイランキング を作ったよ！
+  //   👇
+  //
+  //   1. 曲名 …
+  function textHead(url) {
+    return [...(url ? [`${url} で`] : []), `${HASHTAG} を作ったよ！`, "👇", ""];
   }
 
   // 入るだけ順位を載せる
   function buildText(songs, url) {
-    const head = `わたしのモンソニ！TOP${songs.length}`;
-    const tail = `\n${HASHTAG}`;
-    const budget = X_LIMIT - (url ? URL_WEIGHT + 1 : 0);
+    const head = textHead(url);
+    // URL は X では長さに関係なく 23 と数えられる
+    const weight = (t) => xWeight(url ? t.replace(url, "") : t) + (url ? URL_WEIGHT : 0);
     let lines = [];
     for (let i = 0; i < songs.length; i++) {
       const next = lines.concat(`${i + 1}. ${shareTitle(songs[i])}`);
       const more = i + 1 < songs.length ? "\n…" : "";
-      if (xWeight([head, ...next].join("\n") + more + tail) > budget) {
+      if (weight([...head, ...next].join("\n") + more) > X_LIMIT) {
         lines.push("…");
         break;
       }
       lines = next;
     }
-    return [head, ...lines].join("\n") + tail;
+    return [...head, ...lines].join("\n");
   }
 
-  function intentUrl(text, url) {
+  // URL は本文に入れてあるので本文だけ渡す（url も渡すと末尾にもう一度付く）
+  function intentUrl(text) {
     const p = new URLSearchParams({ text });
-    if (url) p.set("url", url);
     return `https://twitter.com/intent/tweet?${p.toString()}`;
   }
 
   function plainText(songs, url) {
     const lines = songs.map((s, i) => `${i + 1}. ${shareTitle(s)} / ${s.u}`);
-    return [`わたしのモンソニ！TOP${songs.length}`, ...lines, HASHTAG, url || ""].join("\n").trim();
+    return [...textHead(url), ...lines].join("\n");
   }
 
   // ---- 画像 ----

@@ -874,8 +874,8 @@
         const blob = shareImage && shareImage.blob ? shareImage.blob : await promise;
         const file = imageFile(blob);
         if (navigator.canShare({ files: [file] })) {
-          // 共有シート経由では URL を別に渡すと落ちるアプリがあるので本文の末尾に入れる
-          await navigator.share({ files: [file], text: url ? `${text}\n${url}` : text });
+          // URL は本文の先頭に入っている（共有シートで別に渡すと落ちるアプリがあるため）
+          await navigator.share({ files: [file], text });
           return;
         }
       } catch (e) {
@@ -894,7 +894,7 @@
     if (!copied) {
       try { downloadImage(await promise); } catch (e) { /* 画像なしで投稿画面だけ開く */ }
     }
-    window.open(Share.intentUrl(text, url), "_blank", "noopener");
+    window.open(Share.intentUrl(text), "_blank", "noopener");
     toast(copied
       ? "結果画像をコピーしました。投稿画面で Ctrl+V（Mac は ⌘V）を押して貼り付けてください"
       : "結果画像を保存しました。投稿画面で画像を添付してください");
