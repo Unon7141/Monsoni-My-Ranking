@@ -359,7 +359,30 @@
     // ---- 1位: ユニット色のスポットライト（2色なら左右から交差） ----
     const s1 = songs[0];
     const hc = colorsOf(s1);
-    const jx = M, jy = heroY;
+    const jy = heroY;
+
+    // 1位のまとまり（「1」・ジャケット・曲名）を左右中央に置く。
+    // 先に曲名を折り返して幅を測り、まとまりの左端（「1」の縁取り）から右端（最も長い行）までを中央へ
+    const GAP_T = 44; // ジャケットと曲名の間
+    const unitH = 40, noteH = s1 && s1.note ? 34 : 0;
+    const tw = W - M - (M + J + GAP_T); // 曲名に使える幅（左寄せのときと同じ）
+    let tt = null, ut = null, nt = null, jx = M;
+    if (s1) {
+      tt = wrapText(ctx, s1.t, tw, 3, 64, 34, (z) => `${z}px ${HAND}`, 1.14, J - 12 - unitH - noteH);
+      ctx.font = `${tt.size}px ${HAND}`;
+      let textW = Math.max(...tt.lines.map((l) => ctx.measureText(l).width));
+      ut = fitText(ctx, s1.u, tw - 32, 26, 18, (z) => `700 ${z}px ${BODY}`);
+      textW = Math.max(textW, 32 + ctx.measureText(ut.text).width);
+      if (s1.note) {
+        nt = fitText(ctx, s1.note, tw, 22, 16, (z) => `500 ${z}px ${BODY}`);
+        textW = Math.max(textW, ctx.measureText(nt.text).width);
+      }
+      const ONE_OUT = 65; // 「1」の縁取りがジャケットの左にはみ出す幅
+      const groupW = ONE_OUT + J + GAP_T + textW;
+      const centered = (W - groupW) / 2 + ONE_OUT;
+      // 右端は余白 M を超えない範囲で中央へ（長い曲名のときは左寄せのまま）
+      jx = Math.round(Math.max(M, Math.min(centered, W - M - textW - GAP_T - J)));
+    }
     ctx.globalCompositeOperation = "lighter";
     hc.slice(0, 2).forEach((c, k) => {
       const ox = jx + J / 2 + (hc.length > 1 ? (k ? 1 : -1) * 240 : 40);
@@ -419,11 +442,8 @@
       ctx.fillText("1", oneX, oneY);
       ctx.restore();
 
-      // 曲名・ユニット・注記はジャケットの右に下そろえ
-      const tx = jx + J + 44, tw = W - M - tx;
-      const unitH = 40, noteH = s1.note ? 34 : 0;
-      const room = J - 12 - unitH - noteH;
-      const tt = wrapText(ctx, s1.t, tw, 3, 64, 34, (z) => `${z}px ${HAND}`, 1.14, room);
+      // 曲名・ユニット・注記はジャケットの右に下そろえ（折り返しは上で済ませてある）
+      const tx = jx + J + GAP_T;
       let y = jy + J - noteH - unitH - tt.lines.length * tt.lineH;
       ctx.fillStyle = "#ffffff";
       ctx.font = `${tt.size}px ${HAND}`;
@@ -434,11 +454,11 @@
       y += unitH;
       drawDot(ctx, tx + 10, y - 10, 10, hc);
       ctx.fillStyle = TEXT;
-      const ut = fitText(ctx, s1.u, tw - 32, 26, 18, (z) => `700 ${z}px ${BODY}`);
+      ctx.font = `700 ${ut.size}px ${BODY}`;
       ctx.fillText(ut.text, tx + 32, y);
-      if (s1.note) {
+      if (nt) {
         ctx.fillStyle = MUTED;
-        const nt = fitText(ctx, s1.note, tw, 22, 16, (z) => `500 ${z}px ${BODY}`);
+        ctx.font = `500 ${nt.size}px ${BODY}`;
         ctx.fillText(nt.text, tx, y + noteH);
       }
     }
