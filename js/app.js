@@ -677,13 +677,11 @@
     if (isAdjusted()) $("[data-adjust]").open = true;
     renderMore();
 
-    const canFileShare = !!(navigator.canShare && navigator.share &&
-      navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] }));
-    $('[data-action="share-image"]').textContent = canFileShare ? "画像でシェア" : "画像を保存";
-    $("[data-share-note]").textContent = canFileShare
-      ? "「画像でシェア」からXアプリを選ぶと、画像つきでポストできます。"
-      : "画像を添付したいときは、先に「画像を保存」してからポストに追加してください。";
+    $("[data-share-note]").textContent = isMobile()
+      ? "「Xでポスト」から X アプリを選ぶと、結果画像つきでポストできます。"
+      : "「Xでポスト」を押すと結果画像がコピーされます。投稿画面で Ctrl+V（Mac は ⌘V）を押して貼り付けてください。";
     show("screen-result");
+    prepareShareImage();
   }
 
   // 結果の順位表（シェア画像と同じ割り付け）と Spotify の曲リスト（手直しを反映）
@@ -698,6 +696,7 @@
   }
 
   function renderRanking(animate) {
+    shareImage = null; // 順位が変わったら結果画像を作り直す
     const ids = adjustList().slice(0, engine.status().K);
     const songs = ids.map((i) => SONGS[i]);
     const n = songs.length;
@@ -828,40 +827,87 @@
     $$("[data-more-list] .setlist__dot").forEach((d) => setUnitColors(d, d.dataset.unit));
   }
 
-  function shareX() {
-    const url = shareUrl();
-    const text = Share.buildText(rankingSongs(), url);
-    window.open(Share.intentUrl(text, url), "_blank", "noopener");
+  // ---------- シェア ----------
+  // スマホはOSの共有シートで画像を渡すのが唯一の方法。PCは画像をクリップボードに入れて投稿画面を開く
+  const isMobile = () =>
+    (navigator.userAgentData && navigator.userAgentData.mobile) ||
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+  // 結果画像は結果画面を開いた時点で作っておく（押した瞬間に共有できるように）
+  let shareImage = null; // { promise, blob }
+  function prepareShareImage() {
+    if (shareImage) return shareImage.promise;
+    const entry = { blob: null };
+    const url = siteUrl();
+    entry.promise = Share.drawImage(rankingSongs(), {
+      colorOf: colorsOf, imgUrl, dateLabel: dateLabel(),
+      siteLabel: url.replace(/^https?:\/\//, "").replace(/\/$/, ""),
+    }).then((blob) => {
+      if (!blob) throw new Error("no blob");
+      entry.blob = blob;
+      return blob;
+    });
+    entry.promise.catch(() => { if (shareImage === entry) shareImage = null; });
+    shareImage = entry;
+    return entry.promise;
+  }
+  const imageFile = (blob) => new File([blob], "monsoni-top10.png", { type: "image/png" });
+
+  function downloadImage(blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "monsoni-top10.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
 
-  async function shareImage() {
+  async function shareX() {
+    const url = shareUrl();
+    const text = Share.buildText(rankingSongs(), url);
+    const promise = prepareShareImage();
+
+    if (isMobile() && navigator.share && navigator.canShare) {
+      try {
+        const blob = shareImage && shareImage.blob ? shareImage.blob : await promise;
+        const file = imageFile(blob);
+        if (navigator.canShare({ files: [file] })) {
+          // 共有シート経由では URL を別に渡すと落ちるアプリがあるので本文の末尾に入れる
+          await navigator.share({ files: [file], text: url ? `${text}\n${url}` : text });
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // 共有シートを閉じただけ
+      }
+    }
+
+    // PC（または共有シートが使えないとき）: 画像をクリップボードへ → 投稿画面を開く
+    let copied = false;
+    if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": promise })]);
+        copied = true;
+      } catch (e) { /* 非対応のブラウザは保存にまわす */ }
+    }
+    if (!copied) {
+      try { downloadImage(await promise); } catch (e) { /* 画像なしで投稿画面だけ開く */ }
+    }
+    window.open(Share.intentUrl(text, url), "_blank", "noopener");
+    toast(copied
+      ? "結果画像をコピーしました。投稿画面で Ctrl+V（Mac は ⌘V）を押して貼り付けてください"
+      : "結果画像を保存しました。投稿画面で画像を添付してください");
+  }
+
+  async function saveImage() {
     const btn = $('[data-action="share-image"]');
     const label = btn.textContent;
     btn.disabled = true;
     btn.textContent = "画像をつくっています…";
     try {
-      const songs = rankingSongs();
-      const url = siteUrl();
-      const blob = await Share.drawImage(songs, {
-        colorOf: colorsOf, imgUrl, dateLabel: dateLabel(),
-        siteLabel: url.replace(/^https?:\/\//, "").replace(/\/$/, ""),
-      });
-      if (!blob) throw new Error("no blob");
-      const file = new File([blob], "monsoni-top10.png", { type: "image/png" });
-      if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], text: Share.buildText(songs, shareUrl()) });
-        } catch (e) { /* キャンセル */ }
-      } else {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "monsoni-top10.png";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-        toast("画像を保存しました");
-      }
+      downloadImage(await prepareShareImage());
+      toast("画像を保存しました");
     } catch (e) {
       toast("画像をつくれませんでした。もう一度お試しください");
     } finally {
@@ -959,7 +1005,7 @@
       case "revive-confirm": return confirmRevive();
       case "adjust-reset": return resetAdjust();
       case "share-x": return shareX();
-      case "share-image": return shareImage();
+      case "share-image": return saveImage();
       case "copy-text": return copyText();
       case "restart":
         clearSaved();
