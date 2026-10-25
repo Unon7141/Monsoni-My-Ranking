@@ -306,13 +306,21 @@
     const allText = songs.map((s) => s.t + s.u + (s.note || "")).join("") + head + HASHTAG + "0123456789…♪・";
     const metaText = (siteLabel || "") + (dateLabel || "") + "0123456789";
     if (document.fonts && document.fonts.load) {
-      await Promise.all([
-        document.fonts.load(`40px "Yusei Magic"`, allText),
-        document.fonts.load(`500 20px "Zen Kaku Gothic New"`, allText),
-        document.fonts.load(`700 20px "Zen Kaku Gothic New"`, allText),
-        document.fonts.load(`40px "RocknRoll One"`, head),
-        document.fonts.load(`400 20px "Martian Mono"`, metaText),
-      ]).catch(() => {});
+      // 読み込みが間に合わないと、その文字だけ細い代わりの書体で描かれてしまう。
+      // 使う書体と文字が本当に読み込まれたかを確かめ、足りなければ少し待って読み直す
+      const need = [
+        [`40px "Yusei Magic"`, allText],
+        [`500 20px "Zen Kaku Gothic New"`, allText],
+        [`700 20px "Zen Kaku Gothic New"`, allText],
+        [`40px "RocknRoll One"`, head],
+        [`400 20px "Martian Mono"`, metaText],
+      ];
+      for (let tryNo = 0; tryNo < 4; tryNo++) {
+        await Promise.all(need.map(([f, t]) => document.fonts.load(f, t))).catch(() => {});
+        if (document.fonts.ready) await document.fonts.ready;
+        if (need.every(([f, t]) => document.fonts.check(f, t))) break;
+        await new Promise((r) => setTimeout(r, 500));
+      }
     }
     const arts = await Promise.all(songs.map((s, i) => loadImage(imgUrl(s, i === 0 ? 640 : 300))));
 
@@ -395,11 +403,12 @@
       ctx.restore();
       drawArt(ctx, arts[0], hc, jx, jy, J, 6);
 
-      // 手書きの大きな「1」（ジャケットの角にかぶせる）
+      // 手書きの「1」（結果画面や2位・3位と同じく、ジャケットの左上の角にかぶせる）
       ctx.save();
       ctx.font = `236px ${HAND}`;
-      const oneX = jx + J - 34, oneY = jy + 168;
-      const oneR = oneX + ctx.measureText("1").width;
+      // 「1」の右端（縁取り込み）がジャケットの左端にわずかにかかる位置。
+      // Yusei Magic の「1」は文字幅より細く、線は原点から約 0.06〜0.28em の範囲にある
+      const oneX = jx - 70, oneY = jy + 168;
       ctx.lineJoin = "round";
       ctx.lineWidth = 16;
       ctx.strokeStyle = HALL;
@@ -410,8 +419,8 @@
       ctx.fillText("1", oneX, oneY);
       ctx.restore();
 
-      // 曲名・ユニット・注記は「1」の右に下そろえ
-      const tx = Math.max(jx + J + 44, oneR + 20), tw = W - M - tx;
+      // 曲名・ユニット・注記はジャケットの右に下そろえ
+      const tx = jx + J + 44, tw = W - M - tx;
       const unitH = 40, noteH = s1.note ? 34 : 0;
       const room = J - 12 - unitH - noteH;
       const tt = wrapText(ctx, s1.t, tw, 3, 64, 34, (z) => `${z}px ${HAND}`, 1.14, room);

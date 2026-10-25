@@ -860,7 +860,8 @@ body.is-locked { overflow: hidden; }
 /* ---- 1位 ---- */
 .fin-hero { grid-column: 1 / -1; grid-row: 1; margin-bottom: 44px; }
 .hero { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 22px; }
-.hero__stage { position: relative; z-index: 0; width: min(74%, 300px); }
+/* 「1」をジャケットの左にはみ出させる分だけ、ジャケットを右に寄せておく（画面の端で切れないように） */
+.hero__stage { --num-out: clamp(19px, 5.25vw, 28px); position: relative; z-index: 0; width: min(74%, 300px); margin-left: var(--num-out); }
 .hero__art {
   border-radius: 6px;
   box-shadow: 0 22px 44px -14px rgba(0, 0, 0, 0.7);
@@ -908,7 +909,8 @@ body.is-locked { overflow: hidden; }
   position: absolute;
   z-index: 2;
   top: -0.3em;
-  left: -0.14em;
+  /* 右端（縁取り込み）がジャケットの左端にわずかにかかる位置。Yusei Magic の「1」の線は約 0.06〜0.28em */
+  left: -0.29em;
   font-family: var(--f-hand);
   font-size: clamp(76px, 21vw, 112px);
   line-height: 1;
@@ -1065,7 +1067,7 @@ body.is-locked { overflow: hidden; }
     column-gap: clamp(32px, 4.5vw, 52px);
     align-items: end;
   }
-  .hero__stage { width: 100%; }
+  .hero__stage { width: calc(100% - var(--num-out)); }
   .hero__body { padding-bottom: 4px; }
   .hero__title { --ts: clamp(40px, 5.4vw, 56px); }
   .hero__title.is-mid { --ts: clamp(32px, 4.6vw, 46px); }
